@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Grid, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
@@ -48,6 +48,8 @@ const USERS: User[] = [
   { username: 'Treasury', password: 'password', role: 'user' },
   { username: 'Inventory & Cost accounting mngr', password: 'password', role: 'user' },
   { username: 'Revenue Assurance and Collection mngr', password: 'password', role: 'user' },
+  { username: 'Purchasing', password: 'password', role: 'user' },
+  { username: 'Warehouse & Logistics mngr', password: 'password', role: 'user' },
   { username: 'Biz dev', password: 'password', role: 'user' },
   { username: 'EA', password: 'password', role: 'user' },
   { username: 'IT - SAP', password: 'password', role: 'user' },
