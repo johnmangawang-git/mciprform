@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Grid, Dialog, DialogTitle, DialogContent, DialogActions, IconButton } from '@mui/material';
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
+import AdminDashboard from './components/AdminDashboard'; // New import
 import * as XLSX from 'xlsx';
 
 interface PoItem {
@@ -30,7 +31,8 @@ interface OrderHistoryEntry {
   date: string;
   time: string;
   items: PoItem[];
-  status: string; // e.g., 'Pending', 'Delivered'
+  status: string; // e.g., 'Pending', 'Submitted'
+  user: string; // User who submitted the order
 }
 
 interface User {
@@ -46,8 +48,6 @@ const USERS: User[] = [
   { username: 'Treasury', password: 'password', role: 'user' },
   { username: 'Inventory & Cost accounting mngr', password: 'password', role: 'user' },
   { username: 'Revenue Assurance and Collection mngr', password: 'password', role: 'user' },
-  { username: 'Purchasing', password: 'password', role: 'user' },
-  { username: 'Warehouse & Logistics mngr', password: 'password', role: 'user' },
   { username: 'Biz dev', password: 'password', role: 'user' },
   { username: 'EA', password: 'password', role: 'user' },
   { username: 'IT - SAP', password: 'password', role: 'user' },
@@ -91,10 +91,20 @@ function App() {
       setLookupData(JSON.parse(savedLookupData));
     }
 
-    // Load order history from local storage
+    // Load and filter order history from local storage (last 14 days)
     const savedOrderHistory = localStorage.getItem('poOrderHistory');
     if (savedOrderHistory) {
-      setOrderHistory(JSON.parse(savedOrderHistory));
+      const parsedHistory: OrderHistoryEntry[] = JSON.parse(savedOrderHistory);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const filteredHistory = parsedHistory.filter(entry => {
+        // Ensure date is parsed correctly, handling potential inconsistencies
+        const [month, day, year] = entry.date.split('/').map(Number);
+        const entryDate = new Date(year, month - 1, day); // Month is 0-indexed
+        return entryDate >= fourteenDaysAgo;
+      });
+      setOrderHistory(filteredHistory);
     }
 
     // Check for a previously logged-in user (optional, for persistence)
@@ -190,7 +200,8 @@ function App() {
       date: currentDate,
       time: currentTime,
       items: items, // Save a copy of the current items
-      status: 'Pending',
+      status: 'Submitted', // Changed status to Submitted
+      user: loggedInUser || 'Unknown', // Store the user who submitted
     };
     setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
 
@@ -246,6 +257,8 @@ function App() {
 
   const isAdmin = loggedInUser === 'admin';
 
+  console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
+
   return (
     <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh', padding: 3 }}>
       <AppBar position="static" sx={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)', marginBottom: 4 }}>
@@ -254,7 +267,7 @@ function App() {
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
               MCI Online PO Form
             </Typography>
-            <Typography variant="caption" sx={{ color: '#616161', fontSize: '0.25rem', lineHeight: 1, marginTop: '-4px' }}>
+            <Typography sx={{ color: '#616161', fontSize: '1.5rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
             </Typography>
           </Box>
@@ -323,6 +336,12 @@ function App() {
             </Button>
           </Box>
           <PoTable items={items} setItems={setItems} lookupData={lookupData} />
+
+          {isAdmin && (
+            <Box sx={{ marginTop: 4, marginBottom: 4 }}>
+              <AdminDashboard orderHistory={orderHistory} />
+            </Box>
+          )}
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, marginTop: 4, flexWrap: 'wrap' }}>
             <input
