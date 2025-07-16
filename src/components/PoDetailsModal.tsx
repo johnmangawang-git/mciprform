@@ -74,9 +74,9 @@ const PoDetailsModal: React.FC<PoDetailsModalProps> = ({ poDetails, onClose }) =
                   <TableCell>{item.itemCode}</TableCell>
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.uom}</TableCell>
-                  <TableCell>{item.unitPrice.toFixed(2)}</TableCell>
+                  <TableCell>₱{item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
-                  <TableCell>{item.amount.toFixed(2)}</TableCell>
+                  <TableCell>₱{item.amount.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

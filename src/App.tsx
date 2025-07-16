@@ -254,7 +254,7 @@ function App() {
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
               MCI Online PO Form
             </Typography>
-            <Typography variant="caption" sx={{ color: '#616161', marginTop: '-4px' }}>
+            <Typography variant="caption" sx={{ color: '#616161', fontSize: '0.25rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
             </Typography>
           </Box>
@@ -359,7 +359,7 @@ function App() {
 
           <Box sx={{ borderTop: '1px solid #e0e0e0', paddingTop: 3, marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 3, borderRadius: '8px', boxShadow: 'inset 0px 1px 5px rgba(0, 0, 0, 0.05)' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121' }}>Total Items: <span style={{ color: '#1976d2' }}>{items.length}</span></Typography>
-            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121' }}>Total Amount: <span style={{ color: '#1976d2' }}>${totalAmount.toFixed(2)}</span></Typography>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121' }}>Total Amount: <span style={{ color: '#1976d2' }}>₱{totalAmount.toFixed(2)}</span></Typography>
           </Box>
         </Container>
       )}

@@ -175,7 +175,7 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
-                    ${item.amount.toFixed(2)}
+                    ₱{item.amount.toFixed(2)}
                   </Typography>
                 </TableCell>
                 <TableCell>
