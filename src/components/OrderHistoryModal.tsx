@@ -20,15 +20,22 @@ interface OrderHistoryEntry {
   time: string;
   items: PoItem[];
   status: string;
+  user: string;
 }
 
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
   onClose: () => void;
+  loggedInUser: string | null;
+  isAdmin: boolean;
 }
 
-const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose }) => {
+const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, loggedInUser, isAdmin }) => {
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
+
+  const filteredOrderHistory = isAdmin
+    ? orderHistory
+    : orderHistory.filter(entry => entry.user === loggedInUser);
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
@@ -51,7 +58,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
           </Typography>
         ) : (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center' }}>
-            {orderHistory.map((entry, index) => (
+            {filteredOrderHistory.map((entry, index) => (
               <Button
                 key={index}
                 variant="outlined"
@@ -85,6 +92,11 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                 <Typography variant="body2" sx={{ fontWeight: 'medium', color: '#388e3c', marginTop: 1 }}>
                   Status: {entry.status}
                 </Typography>
+                {isAdmin && (
+                  <Typography variant="body2" sx={{ color: '#616161', marginTop: 1 }}>
+                    User: {entry.user}
+                  </Typography>
+                )}
               </Button>
             ))}
           </Box>

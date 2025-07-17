@@ -3,7 +3,7 @@ import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog,
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
-import AdminDashboard from './components/AdminDashboard'; // New import
+
 import * as XLSX from 'xlsx';
 
 interface PoItem {
@@ -59,7 +59,7 @@ const USERS: User[] = [
 
 function App() {
   const [items, setItems] = useState<PoItem[]>([]);
-  const poNumber = 'PO-2025-001'; // Placeholder PO Number (static for now)
+  const [poNumber, setPoNumber] = useState(''); // Now a state variable
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
@@ -79,6 +79,12 @@ function App() {
     minute: '2-digit',
     hour12: true,
   });
+
+  // Function to generate a unique PO number
+  const generateUniquePoNumber = (user: string | null) => {
+    const userPrefix = user ? user.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : 'GUEST';
+    return `PO-${userPrefix}-${Date.now()}`;
+  };
 
   useEffect(() => {
     // Load items from local storage on initial render
@@ -118,6 +124,13 @@ function App() {
   }, []);
 
   useEffect(() => {
+    // Generate a new PO number when the user logs in or if items are cleared
+    if (loggedInUser && items.length === 0) {
+      setPoNumber(generateUniquePoNumber(loggedInUser));
+    }
+  }, [loggedInUser, items]);
+
+  useEffect(() => {
     // Save items to local storage whenever they change
     localStorage.setItem('poItems', JSON.stringify(items));
   }, [items]);
@@ -152,6 +165,8 @@ function App() {
       setLoginError('');
       setUsernameInput('');
       setPasswordInput('');
+      // Generate PO number on successful login
+      setPoNumber(generateUniquePoNumber(user.username));
     } else {
       setLoginError('Invalid username or password.');
     }
@@ -161,6 +176,7 @@ function App() {
     setLoggedInUser(null);
     setShowLoginDialog(true);
     setItems([]); // Clear current items on logout
+    setPoNumber(generateUniquePoNumber(null)); // Generate new PO for next session
   };
 
   const handleExport = () => {
@@ -213,6 +229,7 @@ function App() {
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all items?')) {
       setItems([]);
+      setPoNumber(generateUniquePoNumber(loggedInUser)); // Generate new PO number on clear
     }
   };
 
@@ -339,11 +356,7 @@ function App() {
           </Box>
           <PoTable items={items} setItems={setItems} lookupData={lookupData} />
 
-          {isAdmin && (
-            <Box sx={{ marginTop: 4, marginBottom: 4 }}>
-              <AdminDashboard orderHistory={orderHistory} />
-            </Box>
-          )}
+          
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, marginTop: 4, flexWrap: 'wrap' }}>
             <input
@@ -389,6 +402,8 @@ function App() {
         <OrderHistoryModal
           orderHistory={orderHistory}
           onClose={() => setShowOrderHistory(false)}
+          loggedInUser={loggedInUser}
+          isAdmin={isAdmin}
         />
       )}
     </Box>
