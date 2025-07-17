@@ -286,7 +286,7 @@ function App() {
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
               MCI Online PO Form
             </Typography>
-            <Typography sx={{ color: '#616161', fontSize: '1.5rem', lineHeight: 1, marginTop: '-4px' }}>
+            <Typography sx={{ color: '#616161', fontSize: '0.6rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
             </Typography>
           </Box>

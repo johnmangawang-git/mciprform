@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Button, Box } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Button, Box, DialogActions } from '@mui/material';
+import { Close as CloseIcon, Download as DownloadIcon } from '@mui/icons-material';
 import PoDetailsModal from './PoDetailsModal';
+import * as XLSX from 'xlsx';
 
 interface PoItem {
   id: number;
@@ -36,6 +37,29 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
   const filteredOrderHistory = isAdmin
     ? orderHistory
     : orderHistory.filter(entry => entry.user === loggedInUser);
+
+  const handleExportAll = () => {
+    const data = filteredOrderHistory.flatMap(order =>
+      order.items.map(item => ({
+        'User': order.user,
+        'PO Number': order.poNumber,
+        'Date': order.date,
+        'Time': order.time,
+        'Item Code': item.itemCode,
+        'Description': item.description,
+        'UOM': item.uom,
+        'Supplier': item.supplier,
+        'Unit Price': item.unitPrice,
+        'Quantity': item.quantity,
+        'Amount': item.amount,
+      }))
+    );
+
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'All Orders');
+    XLSX.writeFile(wb, `MCI_PO_ALL_ORDERS_${new Date().toLocaleDateString('en-CA')}.xlsx`);
+  };
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
@@ -102,6 +126,19 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
           </Box>
         )}
       </DialogContent>
+
+      <DialogActions sx={{ padding: 2 }}>
+        {isAdmin && (
+          <Button
+            variant="contained"
+            startIcon={<DownloadIcon />}
+            onClick={handleExportAll}
+            sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' } }}
+          >
+            Export All Orders
+          </Button>
+        )}
+      </DialogActions>
 
       {selectedPo && (
         <PoDetailsModal
