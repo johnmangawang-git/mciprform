@@ -41,7 +41,7 @@ interface User {
   role: 'admin' | 'user';
 }
 
-const USERS: User[] = [
+const USERS_INITIAL: User[] = [
   { username: 'admin', password: 'admin', role: 'admin' },
   { username: 'Finance director', password: 'password', role: 'user' },
   { username: 'Gen accounting', password: 'password', role: 'user' },
@@ -57,7 +57,11 @@ const USERS: User[] = [
   { username: 'Service', password: 'password', role: 'user' },
 ];
 
-function App() {
+const App = () => {
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : USERS_INITIAL;
+  });
   const [items, setItems] = useState<PoItem[]>([]);
   const [poNumber, setPoNumber] = useState(''); // Now a state variable
   const [lookupData, setLookupData] = useState<LookupData>({});
@@ -68,6 +72,11 @@ function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -155,7 +164,7 @@ function App() {
   }, [loggedInUser]);
 
   const handleLogin = () => {
-    const user = USERS.find(
+    const user = users.find(
       (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === passwordInput
     );
 
@@ -177,6 +186,43 @@ function App() {
     setShowLoginDialog(true);
     setItems([]); // Clear current items on logout
     setPoNumber(generateUniquePoNumber(null)); // Generate new PO for next session
+  };
+
+  const handleChangePassword = () => {
+    if (!usernameInput || !oldPassword || !newPassword || !confirmNewPassword) {
+      setPasswordChangeError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeError('New password and confirm new password do not match.');
+      return;
+    }
+
+    const userIndex = users.findIndex(
+      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === oldPassword
+    );
+
+    if (userIndex === -1) {
+      setPasswordChangeError('Invalid username or old password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordChangeError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex].password = newPassword;
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers)); // Save updated users to local storage
+    setPasswordChangeError('');
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowChangePasswordDialog(false);
+    alert('Password changed successfully!');
   };
 
   const handleExport = () => {
@@ -342,6 +388,9 @@ function App() {
             <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
               Login
             </Button>
+            <Button onClick={() => setShowChangePasswordDialog(true)} variant="outlined">
+              Change Password
+            </Button>
           </DialogActions>
         </Dialog>
       ) : (
@@ -397,6 +446,63 @@ function App() {
           </Box>
         </Container>
       )}
+
+      <Dialog open={showChangePasswordDialog} onClose={() => setShowChangePasswordDialog(false)}>
+        <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white', fontWeight: 'bold' }}>Change Password</DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="old-password"
+            label="Old Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={oldPassword}
+            onChange={(e) => setOldPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="new-password"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="confirm-new-password"
+            label="Confirm New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleChangePassword();
+              }
+            }}
+          />
+          {passwordChangeError && (
+            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
+              {passwordChangeError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ padding: 2 }}>
+          <Button onClick={() => setShowChangePasswordDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleChangePassword} variant="contained" color="primary">
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {showOrderHistory && (
         <OrderHistoryModal
