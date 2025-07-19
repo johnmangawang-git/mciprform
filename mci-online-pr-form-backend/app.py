@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 # In a real app, use instance-relative config
 app.config.from_mapping(
-    SECRET_KEY='dev', # Change this in production
+    SECRET_KEY=os.environ.get('SECRET_KEY', 'a_very_long_and_random_secret_key_for_production_use'), # Use env var or strong default
     SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(app.instance_path, 'orders.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SESSION_COOKIE_SAMESITE='None',
@@ -114,9 +114,12 @@ def login():
         session['user_id'] = user.id
         session['role'] = user.role
         session['username'] = user.username
-        print(f"Session after login: {session}") # Debug print
+        print(f"Login successful for {username}. Session: {session}")
+        print(f"Request headers: {request.headers}")
         return jsonify({'message': 'Login successful', 'user': {'username': user.username, 'role': user.role}}), 200
     
+    print(f"Login failed for {username}. Invalid credentials.")
+    print(f"Request headers: {request.headers}")
     return jsonify({'error': 'Invalid username or password'}), 401
 
 @app.route('/api/logout', methods=['POST'])
@@ -162,7 +165,7 @@ def change_password():
 @app.route('/api/requests', methods=['POST'])
 def submit_request():
     if 'user_id' not in session:
-        print(f"Submit request: user_id not in session. Current session: {session}") # Debug print
+        print(f"Submit request: Authentication required. Session: {session}. Headers: {request.headers}")
         return jsonify({'error': 'Authentication required'}), 401
 
     data = request.get_json()
@@ -176,7 +179,7 @@ def submit_request():
     )
     db.session.add(new_pr)
     db.session.commit()
-    print(f"Submit request: user_id {session['user_id']} successfully submitted PR") # Debug print
+    print(f"Submit request: user_id {session['user_id']} successfully submitted PR. Session: {session}")
     return jsonify({'message': 'Purchase Request submitted successfully'}), 201
 
 @app.route('/api/requests', methods=['GET'])
@@ -227,7 +230,7 @@ def get_lookup_data():
 @app.route('/api/lookup', methods=['POST'])
 def upload_lookup_data():
     if 'user_id' not in session or session['role'] != 'admin':
-        print(f"Upload lookup data: user_id not in session or not admin. Current session: {session}") # Debug print
+        print(f"Upload lookup data: Authentication required or not admin. Session: {session}. Headers: {request.headers}")
         return jsonify({'error': 'Admin access required'}), 403
 
     data = request.get_json()
