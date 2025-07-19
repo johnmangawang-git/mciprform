@@ -160,11 +160,9 @@ const App = () => {
         } else {
           setShowLoginDialog(true);
         }
-      } catch (error) {
-        } catch (error: any) {
-      console.error("Session check failed:", error);
-      setShowLoginDialog(true); // Show login on error
-    }
+      } catch (error: any) {
+        console.error("Session check failed:", error);
+        setShowLoginDialog(true); // Show login on error
       }
     };
     checkUserSession();
