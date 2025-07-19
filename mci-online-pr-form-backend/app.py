@@ -15,7 +15,7 @@ app.config.from_mapping(
     SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(app.instance_path, 'orders.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
 )
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"]) 
+CORS(app, supports_credentials=True, origins=["http://localhost:5173", "https://mcionlineprform.netlify.app"]) 
 
 db = SQLAlchemy(app)
 
