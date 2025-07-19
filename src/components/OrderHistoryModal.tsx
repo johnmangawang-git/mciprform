@@ -107,7 +107,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                 onClick={() => setSelectedPr(entry)} // Changed from setSelectedPo
               >
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121', marginBottom: 1 }}>
-                  PR: {entry.prNumber} // Changed from PO
+                  PR: {entry.prNumber}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161' }}>
                   Date: {entry.date}
