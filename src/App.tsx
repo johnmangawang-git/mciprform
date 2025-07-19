@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 // A simple service to handle all API requests
 const apiService = {
   // Base URL for the backend
-  API_URL: 'http://localhost:5000/api',
+  API_URL: 'https://mciprform.onrender.com/api',
 
   // Custom fetch function to handle credentials and headers
   async fetch(endpoint: string, options: RequestInit = {}) {
