@@ -252,6 +252,3 @@ try:
     os.makedirs(app.instance_path)
 except OSError:
     pass
-
-if __name__ == '__main__':
-    app.run(debug=True, host='localhost', port=5000)
