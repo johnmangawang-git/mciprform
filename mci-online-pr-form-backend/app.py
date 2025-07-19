@@ -14,6 +14,8 @@ app.config.from_mapping(
     SECRET_KEY='dev', # Change this in production
     SQLALCHEMY_DATABASE_URI='sqlite:///' + os.path.join(app.instance_path, 'orders.db'),
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
+    SESSION_COOKIE_SAMESITE='None',
+    SESSION_COOKIE_SECURE=True,
 )
 CORS(app, supports_credentials=True, origins=["http://localhost:5173", "https://mcionlineprform.netlify.app"]) 
 
