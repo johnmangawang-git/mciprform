@@ -33,7 +33,7 @@ const apiService = {
   checkSession() {
     return this.fetch('/session');
   },
-  login(username, password) {
+  login(username: string, password: string) {
     return this.fetch('/login', {
       method: 'POST',
       body: JSON.stringify({ username, password }),
@@ -42,7 +42,7 @@ const apiService = {
   logout() {
     return this.fetch('/logout', { method: 'POST' });
   },
-  changePassword(oldPassword, newPassword, confirmNewPassword) {
+  changePassword(oldPassword: string, newPassword: string, confirmNewPassword: string) {
     return this.fetch('/change_password', {
       method: 'POST',
       body: JSON.stringify({ oldPassword, newPassword, confirmNewPassword }),
@@ -53,7 +53,7 @@ const apiService = {
   getRequests() {
     return this.fetch('/requests');
   },
-  submitRequest(prData) {
+  submitRequest(prData: any) { // Using 'any' for simplicity, can be more specific if needed
     return this.fetch('/requests', {
       method: 'POST',
       body: JSON.stringify(prData),
@@ -62,7 +62,7 @@ const apiService = {
   getLookupData() {
     return this.fetch('/lookup');
   },
-  uploadLookupData(lookupData) {
+  uploadLookupData(lookupData: any) { // Using 'any' for simplicity, can be more specific if needed
     return this.fetch('/lookup', {
       method: 'POST',
       body: JSON.stringify(lookupData),
@@ -141,7 +141,7 @@ const App = () => {
     try {
       const history = await apiService.getRequests();
       setOrderHistory(history);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to fetch order history:", error);
       // Optionally, show an error to the user
     }
@@ -161,8 +161,10 @@ const App = () => {
           setShowLoginDialog(true);
         }
       } catch (error) {
-        console.error("Session check failed:", error);
-        setShowLoginDialog(true); // Show login on error
+        } catch (error: any) {
+      console.error("Session check failed:", error);
+      setShowLoginDialog(true); // Show login on error
+    }
       }
     };
     checkUserSession();
@@ -180,9 +182,9 @@ const App = () => {
           const data = await apiService.getLookupData();
           console.log("App.tsx: Fetched lookup data", data);
           setLookupData(data);
-        } catch (error) {
-          console.error("Failed to fetch lookup data:", error);
-        }
+        } catch (error: any) {
+      console.error("Failed to fetch lookup data:", error);
+    }
       };
       fetchLookup();
     }
@@ -199,7 +201,7 @@ const App = () => {
       setLoginError('');
       setUsernameInput('');
       setPasswordInput('');
-    } catch (error) {
+    } catch (error: any) {
       setLoginError(error.message || 'Invalid username or password.');
     }
   };
@@ -211,7 +213,7 @@ const App = () => {
       setShowLoginDialog(true);
       setItems([]);
       setPrNumber('');
-    } catch (error) {
+    } catch (error: any) {
       console.error("Logout failed:", error);
       // Handle logout error if necessary
     }
@@ -226,7 +228,7 @@ const App = () => {
       setNewPassword('');
       setConfirmNewPassword('');
       setPasswordChangeError('');
-    } catch (error) {
+    } catch (error: any) {
       setPasswordChangeError(error.message || 'Failed to change password.');
     }
   };
@@ -257,7 +259,7 @@ const App = () => {
       setItems([]); // Clear items after submission
       setPrNumber(generateUniquePrNumber(loggedInUser)); // Generate new PR number
       fetchAndSetOrderHistory(); // Refresh history
-    } catch (error) {
+    } catch (error: any) {
       alert(`Failed to submit order: ${error.message}`);
     }
   };
@@ -300,7 +302,7 @@ const App = () => {
         await apiService.uploadLookupData(newLookup);
         setLookupData(newLookup); // Update state on success
         alert('Lookup data uploaded successfully!');
-      } catch (error) {
+      } catch (error: any) {
         console.error('Error processing or uploading Excel file:', error);
         alert(`Failed to upload lookup data: ${error.message}`);
       }
