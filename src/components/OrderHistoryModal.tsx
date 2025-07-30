@@ -13,6 +13,7 @@ interface PrItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 interface OrderHistoryEntry {
@@ -57,6 +58,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
         'Unit Price': item.unitPrice,
         'Quantity': item.quantity,
         'Amount': item.amount,
+        'SOH': item.soh,
       }))
     );
 

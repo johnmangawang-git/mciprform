@@ -1,0 +1,281 @@
+Project Overview
+Create a professional, modern frontend web application for an online Purchase Order (PO) form system named "MCI Online PO Form". The application should provide an intuitive interface for creating, managing, and exporting purchase orders.
+Technology Stack Recommendations
+
+Frontend Framework: React 18+ with TypeScript
+Styling: Tailwind CSS for modern, responsive design
+State Management: React Hooks (useState, useEffect, useContext)
+Data Export: SheetJS (xlsx) library for Excel file generation
+UI Components: Custom components with modern design patterns
+Icons: Lucide React or Heroicons for consistent iconography
+
+Core Features & Requirements
+1. Application Header
+
+Title: "MCI Online PO Form" prominently displayed
+Company branding area (logo placeholder)
+Current date/time display
+PO number generation (auto-increment or manual input)
+
+2. Dynamic Data Table
+Create a responsive table with the following columns:
+
+Item Code (Text input)
+Description (Text input with larger width)
+UOM (Unit of Measure - Dropdown with common units: pcs, kg, meters, liters, etc.)
+Supplier (Text input with autocomplete suggestions)
+Unit Price (Number input with currency formatting)
+Amount (Auto-calculated: Unit Price × Quantity, read-only)
+
+3. Table Features
+
+Editable cells: All inputs should be inline and responsive
+Row numbering: Automatic numbering for each row
+Data validation: Required field indicators, number format validation
+Real-time calculations: Amount updates automatically when price/quantity changes
+Responsive design: Mobile-friendly table layout
+
+4. Action Buttons
+
+Add Order Button:
+
+Adds new row to the table
+Focus on first input of new row
+Smooth animation for row addition
+Icon: Plus symbol
+
+
+Submit Order Button:
+
+Validates all required fields
+Generates Excel file with all table data
+Downloads to user's download folder
+Success/error feedback messages
+Icon: Download or Submit symbol
+
+
+
+5. Additional Functionality
+
+Delete Row: X button for each row to remove entries
+Clear All: Button to reset entire form
+Order Summary: Display total amount, item count
+Print Preview: Option to print the PO form
+Save Draft: Local storage to persist data between sessions
+
+UI/UX Design Requirements
+Visual Design
+
+Color Scheme: Professional blue/gray theme with accent colors
+Typography: Clean, readable fonts (Inter, Roboto, or system fonts)
+Layout: Centered container with proper spacing and margins
+Shadows: Subtle shadows for depth and modern appearance
+Animations: Smooth transitions for adding/removing rows
+
+Responsive Behavior
+
+Desktop: Full table view with all columns visible
+Tablet: Condensed view with essential columns
+Mobile: Stacked card layout for each order item
+
+Form Validation
+
+Required fields: Visual indicators for mandatory fields
+Number validation: Ensure prices and quantities are valid numbers
+Error messages: Clear, actionable error feedback
+Success feedback: Confirmation when order is successfully submitted
+
+=====================================
+
+add function 1: create a button named upload items,this will upload excel file 
+to be the permanent lookup database. Thiw excel will contain Column B and should be mapped
+to the Item Code, Column C to be mapped to Description and column F to be mapped to UOM.
+
+add function 2: if I type the item code and it is matched to the database, it should automatically populate
+description and uom. 
+
+=========================================
+Function 3: Order History Summary Interface
+
+After submitting an order, implement a new interface that displays the history of orders grouped by PO (Purchase Order) number. This interface should:
+
+Appear in a separate window or panel.
+
+Display a list of buttons, each labeled with a PO number and its corresponding order date.
+
+When a button is clicked, open a pop-up window showing the full history of that specific PO number, including:
+
+Items ordered
+
+Quantities
+
+Dates
+
+Status (e.g., delivered, pending)
+
+The goal is to provide users with a quick and interactive way to review past orders by PO number.
+
+============================================================
+add a function #5: create a user ID and password text box on top of the mci po form,
+in default, they can all see the buttons but the UPLOAD ITEMS are locked up, this is only for admin use.
+they can only see the ADD ITEM, ORDER HISTORY,CLEAR All
+PRINT PREVIEW & SUBMIT ORDER. The ability to upload items are only for admin.
+each user should be included in the output excel file just add a column in it.
+
+the users are:
+
+user: admin password: admin
+Finance director
+Gen accounting 
+Treasury
+Inventory & Cost accounting mngr
+Revenue Assurance and Collection mngr
+Purchasing
+Warehouse & Logistics mngr
+Biz dev
+EA
+IT - SAP
+FP & A Manager
+Service
+
+=================================================
+
+ADD A FUNCTION #6: add a drop down menu in the Supplier and use this list
+list: 
+Majestic partnership
+MIDAS
+TREPOU
+Arnaiz Electronics
+
+ADD A FUNCTION #7: from the uploaded excel data, map the column F to the UOM    
+
+==================================== 
+ADD A FUNCTION #8: the uploaded excel will be save permanently until I upload another
+excel data using the admin account. This will ensure that once I uploaded the excel data and I logged out
+when I go back the next day, the excel data is still in the database so I can just type the item number and it will auto-populate 
+
+add a function#9: keep an order history for the last 14 days
+
+for mcipoform v4
+ADD A FUNCTION #10: mark all orders in the order history as "Status: submitted" if it is
+completed using the Submit order button.
+ADD A FUNCTION #11: consolidate all orders by all the users I listed and display the update in a pannel
+in the admin window. Only the admin can see who ordered for the last 14 days. tag per user "order psubmitted"
+then the PO number or summary of the order that each user submit for the last 14 days.
+
+
+Name: john mangawang	
+Email: john.mangawang@smegphilippines.com
+Contact Number: 09171005987
+Job Role: IT Manager
+
+====================================
+change the function for admin dashboard: Delete the dashboard for admin
+
+change the function for Order History: 
+For non-admin user, only the their own order history shoul be visible. For example, if IT - SAP ordered something
+when he wants to check the order history, it should only show the IT - SAP order history not the entire orders from other user.
+
+
+
+==============================
+do this changes
+1.change the PO number for every order per user and should be unique everytime.
+2.in the Order History: Include an indicator the user name in it.
+
+================================
+
+1. add a function: For Admin only, in the Order History for admin, add a export all order button 
+to export in excel file all orders on that list compiled in one excel sheet.
+
+2. reduce the font zise of "Created by:JohnM" into 60% smaller
+
+============================
+
+fix issue 1: the admin upload items function is not showing up the completed upload notification
+and its now showing in the database and auto complete is not working
+fix issue 2: for all users, the Order History is now showing
+
+I guess you need to save the data online so all users across the internet can see the changes
+
+===========================================
+fix the following issue below.
+issue 1: I uploaded the excel file using admin account but the data is not populating in the non-admin users.
+issue 2: the Order History is not showing any order history per user.
+
+=====================================
+logged in as admin in firefox, i uploaded excel data then I get this error: Failed to upload lookup data: Admin access required
+the console on page is this:App.tsx:16 
+ POST http://127.0.0.1:5000/api/lookup 403 (FORBIDDEN)
+fetch	@	App.tsx:16
+uploadLookupData	@	App.tsx:60
+reader.onload	@	App.tsx:275
+FileReader		
+handleFileUpload	@	App.tsx:283
+<input>		
+App	@	App.tsx:342
+
+App.tsx:279 Error processing or uploading Excel file: 
+reader.onload	@	App.tsx:279
+FileReader		
+handleFileUpload	@	App.tsx:283
+<input>		
+App	@	App.tsx:342
+
+add password change functionality for non-admin users
+
+===========================
+so i went to here >> Projects/mcionlineprform/project configuration/Build & deploy
+under Build settings I only see
+Runtime=Not set
+Base directory=/
+Package directory=Not set
+Build command=npm run build
+Publish directory=dist
+Functions directory=netlify/functions
+Deploy log visibility =Logs are public
+Build status=Active
+
+==============================
+
+
+Here is the API >>  API_URL: 'https://mciprform.onrender.com/api',
+
+and here is the console log:
+
+﻿
+mcionlineprform.netlify.app/:1 
+ Access to fetch at 'https://mciprform.onrender.com/api/session' from origin 'https://mcionlineprform.netlify.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+mciprform.onrender.com/api/session:1 
+ 
+ Failed to load resource: net::ERR_FAILED
+index-ClT1Jj5w.js:277 
+ Session check failed: TypeError: Failed to fetch
+    at Object.fetch (index-ClT1Jj5w.js:277:6673)
+    at Object.checkSession (index-ClT1Jj5w.js:277:6974)
+    at index-ClT1Jj5w.js:277:8288
+    at index-ClT1Jj5w.js:277:8402
+    at Wo (index-ClT1Jj5w.js:48:84502)
+    at rv (index-ClT1Jj5w.js:48:99290)
+    at Rn (index-ClT1Jj5w.js:48:99174)
+    at rv (index-ClT1Jj5w.js:48:100028)
+    at Rn (index-ClT1Jj5w.js:48:99174)
+    at rv (index-ClT1Jj5w.js:48:99336)
+mcionlineprform.netlify.app/:1 
+ Access to fetch at 'https://mciprform.onrender.com/api/login' from origin 'https://mcionlineprform.netlify.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+mciprform.onrender.com/api/login:1 
+ 
+ Failed to load resource: net::ERR_FAILED
+mcionlineprform.netlify.app/:1 
+ Access to fetch at 'https://mciprform.onrender.com/api/login' from origin 'https://mcionlineprform.netlify.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+mciprform.onrender.com/api/login:1 
+ 
+ Failed to load resource: net::ERR_FAILED
+mcionlineprform.netlify.app/:1 
+ Access to fetch at 'https://mciprform.onrender.com/api/login' from origin 'https://mcionlineprform.netlify.app' has been blocked by CORS policy: Response to preflight request doesn't pass access control check: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+mciprform.onrender.com/api/login:1 
+ 
+ Failed to load resource: net::ERR_FAILED
+[NEW] Explain Console errors by using Copilot in Edge: click 
+ to explain an error. Learn more
+Don't show again

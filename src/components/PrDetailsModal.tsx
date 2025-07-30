@@ -11,6 +11,7 @@ interface PrItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 interface OrderHistoryEntry {
@@ -63,6 +64,7 @@ const PrDetailsModal: React.FC<PrDetailsModalProps> = ({ prDetails, onClose }) =
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Unit Price</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Quantity</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Amount</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>SOH</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -77,6 +79,7 @@ const PrDetailsModal: React.FC<PrDetailsModalProps> = ({ prDetails, onClose }) =
                   <TableCell>₱{item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>₱{item.amount.toFixed(2)}</TableCell>
+                  <TableCell>{item.soh}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

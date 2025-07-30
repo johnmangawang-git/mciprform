@@ -11,6 +11,7 @@ interface PrItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 interface LookupEntry {
@@ -54,6 +55,7 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
         unitPrice: 0,
         quantity: 1,
         amount: 0,
+        soh: 0,
       },
     ]);
     setNextId((prevId) => prevId + 1);
@@ -103,6 +105,7 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Unit Price</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Quantity</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Amount</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>SOH</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -178,6 +181,16 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
                   <Typography variant="body2" sx={{ fontWeight: 'medium' }}>
                     ₱{item.amount.toFixed(2)}
                   </Typography>
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    type="number"
+                    value={item.soh}
+                    onChange={(e) => handleInputChange(item.id, 'soh', parseInt(e.target.value) || 0)}
+                  />
                 </TableCell>
                 <TableCell>
                   <IconButton color="error" onClick={() => handleRemoveItem(item.id)}>

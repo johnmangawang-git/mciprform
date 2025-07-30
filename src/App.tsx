@@ -82,6 +82,7 @@ interface PrItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 interface LookupEntry {
