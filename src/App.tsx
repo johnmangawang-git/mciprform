@@ -3,6 +3,7 @@ import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog,
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
+
 import * as XLSX from 'xlsx';
 
 interface PoItem {
@@ -40,7 +41,7 @@ interface User {
   role: 'admin' | 'user';
 }
 
-const USERS: User[] = [
+const USERS_INITIAL: User[] = [
   { username: 'admin', password: 'admin', role: 'admin' },
   { username: 'Finance director', password: 'password', role: 'user' },
   { username: 'Gen accounting', password: 'password', role: 'user' },
@@ -56,7 +57,11 @@ const USERS: User[] = [
   { username: 'Service', password: 'password', role: 'user' },
 ];
 
-function App() {
+const App = () => {
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : USERS_INITIAL;
+  });
   const [items, setItems] = useState<PoItem[]>([]);
   const [currentPrNumber, setCurrentPrNumber] = useState('');
   const [lookupData, setLookupData] = useState<LookupData>({});
@@ -67,6 +72,11 @@ function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
 
   useEffect(() => {
     const generatePrNumber = () => {
@@ -86,6 +96,12 @@ function App() {
     hour12: true,
   });
 
+  // Function to generate a unique PO number
+  const generateUniquePoNumber = (user: string | null) => {
+    const userPrefix = user ? user.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : 'GUEST';
+    return `PO-${userPrefix}-${Date.now()}`;
+  };
+
   useEffect(() => {
     // Load items from local storage on initial render
     const savedItems = localStorage.getItem('poItems');
@@ -99,10 +115,20 @@ function App() {
       setLookupData(JSON.parse(savedLookupData));
     }
 
-    // Load order history from local storage
+    // Load and filter order history from local storage (last 14 days)
     const savedOrderHistory = localStorage.getItem('poOrderHistory');
     if (savedOrderHistory) {
-      setOrderHistory(JSON.parse(savedOrderHistory));
+      const parsedHistory: OrderHistoryEntry[] = JSON.parse(savedOrderHistory);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const filteredHistory = parsedHistory.filter(entry => {
+        // Ensure date is parsed correctly, handling potential inconsistencies
+        const [month, day, year] = entry.date.split('/').map(Number);
+        const entryDate = new Date(year, month - 1, day); // Month is 0-indexed
+        return entryDate >= fourteenDaysAgo;
+      });
+      setOrderHistory(filteredHistory);
     }
 
     // Check for a previously logged-in user (optional, for persistence)
@@ -112,6 +138,13 @@ function App() {
       setShowLoginDialog(false); // Hide login if user was already logged in
     }
   }, []);
+
+  useEffect(() => {
+    // Generate a new PO number when the user logs in or if items are cleared
+    if (loggedInUser && items.length === 0) {
+      setPoNumber(generateUniquePoNumber(loggedInUser));
+    }
+  }, [loggedInUser, items]);
 
   useEffect(() => {
     // Save items to local storage whenever they change
@@ -138,7 +171,7 @@ function App() {
   }, [loggedInUser]);
 
   const handleLogin = () => {
-    const user = USERS.find(
+    const user = users.find(
       (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === passwordInput
     );
 
@@ -148,6 +181,8 @@ function App() {
       setLoginError('');
       setUsernameInput('');
       setPasswordInput('');
+      // Generate PO number on successful login
+      setPoNumber(generateUniquePoNumber(user.username));
     } else {
       setLoginError('Invalid username or password.');
     }
@@ -157,6 +192,44 @@ function App() {
     setLoggedInUser(null);
     setShowLoginDialog(true);
     setItems([]); // Clear current items on logout
+    setPoNumber(generateUniquePoNumber(null)); // Generate new PO for next session
+  };
+
+  const handleChangePassword = () => {
+    if (!usernameInput || !oldPassword || !newPassword || !confirmNewPassword) {
+      setPasswordChangeError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeError('New password and confirm new password do not match.');
+      return;
+    }
+
+    const userIndex = users.findIndex(
+      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === oldPassword
+    );
+
+    if (userIndex === -1) {
+      setPasswordChangeError('Invalid username or old password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordChangeError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex].password = newPassword;
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers)); // Save updated users to local storage
+    setPasswordChangeError('');
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowChangePasswordDialog(false);
+    alert('Password changed successfully!');
   };
 
   const handleExport = () => {
@@ -215,6 +288,7 @@ function App() {
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all items?')) {
       setItems([]);
+      setPoNumber(generateUniquePoNumber(loggedInUser)); // Generate new PO number on clear
     }
   };
 
@@ -261,6 +335,8 @@ function App() {
 
   const isAdmin = loggedInUser === 'admin';
 
+  console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
+
   return (
     <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh', padding: 3 }}>
       <AppBar position="static" sx={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)', marginBottom: 4 }}>
@@ -269,7 +345,7 @@ function App() {
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
               MCI Online PR Form
             </Typography>
-            <Typography variant="caption" sx={{ color: '#616161', fontSize: '0.25rem', lineHeight: 1, marginTop: '-4px' }}>
+            <Typography sx={{ color: '#616161', fontSize: '0.6rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
             </Typography>
           </Box>
@@ -325,6 +401,9 @@ function App() {
             <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
               Login
             </Button>
+            <Button onClick={() => setShowChangePasswordDialog(true)} variant="outlined">
+              Change Password
+            </Button>
           </DialogActions>
         </Dialog>
       ) : (
@@ -338,6 +417,8 @@ function App() {
             </Button>
           </Box>
           <PoTable items={items} setItems={setItems} lookupData={lookupData} />
+
+          
 
           <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, marginTop: 4, flexWrap: 'wrap' }}>
             <input
@@ -378,6 +459,63 @@ function App() {
           </Box>
         </Container>
       )}
+
+      <Dialog open={showChangePasswordDialog} onClose={() => setShowChangePasswordDialog(false)}>
+        <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white', fontWeight: 'bold' }}>Change Password</DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="old-password"
+            label="Old Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={oldPassword}
+            onChange={(e) => setOldPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="new-password"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="confirm-new-password"
+            label="Confirm New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleChangePassword();
+              }
+            }}
+          />
+          {passwordChangeError && (
+            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
+              {passwordChangeError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ padding: 2 }}>
+          <Button onClick={() => setShowChangePasswordDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleChangePassword} variant="contained" color="primary">
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {showOrderHistory && (
         <OrderHistoryModal
