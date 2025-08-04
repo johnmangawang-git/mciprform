@@ -1,0 +1,26 @@
+
+.poTable {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.poTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.poTable th,
+.poTable td {
+  padding: 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.poTable th {
+  background-color: #f7f7f7;
+  font-weight: bold;
+}
+
+.poTable tbody tr:hover {
+  background-color: #f0f2f5;
+}

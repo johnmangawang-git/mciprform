@@ -1,0 +1,26 @@
+
+.orderHistoryTable {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.orderHistoryTable table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.orderHistoryTable th,
+.orderHistoryTable td {
+  padding: 15px;
+  text-align: left;
+  border-bottom: 1px solid #ddd;
+}
+
+.orderHistoryTable th {
+  background-color: #f7f7f7;
+  font-weight: bold;
+}
+
+.orderHistoryTable tbody tr:hover {
+  background-color: #f0f2f5;
+}
