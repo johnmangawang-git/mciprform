@@ -1,14 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Layout from '../layout/Layout';
 import OrderHistoryTable from '../ui/OrderHistoryTable';
 import styles from './OrderHistory.module.css';
-
-interface OrderHistoryEntry {
-  poNumber: string;
-  date: string;
-  time: string;
-  status: string;
-}
+import type { OrderHistoryEntry } from '../../types';
 
 const OrderHistory: React.FC = () => {
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);

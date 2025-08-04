@@ -7,6 +7,7 @@ export interface PoItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 export interface LookupEntry {
@@ -24,4 +25,5 @@ export interface OrderHistoryEntry {
   time: string;
   items: PoItem[];
   status: string; // e.g., 'Pending', 'Delivered'
+  user: string;
 }

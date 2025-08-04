@@ -1,7 +1,7 @@
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Table, TableBody, TableCell, TableHead, TableRow, Paper } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
-import type { PoItem, OrderHistoryEntry } from '../types';
+import type { OrderHistoryEntry } from '../types';
 
 interface PoDetailsModalProps {
   poDetails: OrderHistoryEntry;

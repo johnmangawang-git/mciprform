@@ -5,6 +5,7 @@ import styles from './Button.module.css';
 interface ButtonProps {
   onClick: () => void;
   primary?: boolean;
+  children?: React.ReactNode;
 }
 
 const Button: React.FC<ButtonProps> = ({ children, onClick, primary }) => {

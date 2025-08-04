@@ -3,7 +3,7 @@ import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Button, Box
 import { Close as CloseIcon, Download as DownloadIcon } from '@mui/icons-material';
 import PoDetailsModal from './PoDetailsModal';
 import * as XLSX from 'xlsx';
-import type { PoItem, OrderHistoryEntry } from '../types';
+import type { OrderHistoryEntry } from '../types';
 
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];

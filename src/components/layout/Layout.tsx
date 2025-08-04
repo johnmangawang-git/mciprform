@@ -4,7 +4,7 @@ import Sidebar from './Sidebar';
 import Topbar from './Topbar';
 import styles from './Layout.module.css';
 
-const Layout: React.FC = ({ children }) => {
+const Layout: React.FC<React.PropsWithChildren> = ({ children }) => {
   return (
     <div className={styles.layout}>
       <Sidebar />

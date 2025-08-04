@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import Layout from '../layout/Layout';
 import UserManagement from '../ui/UserManagement';
 import styles from './Admin.module.css';

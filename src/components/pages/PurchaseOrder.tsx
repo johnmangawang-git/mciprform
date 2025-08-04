@@ -31,7 +31,7 @@ const PurchaseOrder: React.FC = () => {
             Add Item
           </Button>
         </div>
-        <PoTable />
+        <PoTable items={items} setItems={setItems} lookupData={{}} />
       </div>
     </Layout>
   );
