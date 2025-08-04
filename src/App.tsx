@@ -154,7 +154,9 @@ const App = () => {
     if (error) {
       console.error('Error logging out:', error.message);
     } else {
-      // Supabase auth listener will handle setting loggedInUser and showLoginDialog
+      console.log('User logged out successfully.');
+      setLoggedInUser(null); // Explicitly set user to null
+      setShowLoginDialog(true); // Explicitly show login dialog
       setItems([]); // Clear current items on logout
       setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
     }
