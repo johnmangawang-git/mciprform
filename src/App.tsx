@@ -5,34 +5,9 @@ import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
 import * as XLSX from 'xlsx';
 import type { PoItem, LookupData, OrderHistoryEntry } from './types';
-
-interface User {
-  username: string;
-  password: string;
-  role: 'admin' | 'user';
-}
-
-const USERS_INITIAL: User[] = [
-  { username: 'admin', password: 'admin', role: 'admin' },
-  { username: 'Finance director', password: 'password', role: 'user' },
-  { username: 'Gen accounting', password: 'password', role: 'user' },
-  { username: 'Treasury', password: 'password', role: 'user' },
-  { username: 'Inventory & Cost accounting mngr', password: 'password', role: 'user' },
-  { username: 'Revenue Assurance and Collection mngr', password: 'password', role: 'user' },
-  { username: 'Purchasing', password: 'password', role: 'user' },
-  { username: 'Warehouse & Logistics mngr', password: 'password', role: 'user' },
-  { username: 'Biz dev', password: 'password', role: 'user' },
-  { username: 'EA', password: 'password', role: 'user' },
-  { username: 'IT - SAP', password: 'password', role: 'user' },
-  { username: 'FP & A Manager', password: 'password', role: 'user' },
-  { username: 'Service', password: 'password', role: 'user' },
-];
+import { supabase } from './supabaseClient';
 
 const App = () => {
-  const [users, setUsers] = useState<User[]>(() => {
-    const savedUsers = localStorage.getItem('users');
-    return savedUsers ? JSON.parse(savedUsers) : USERS_INITIAL;
-  });
   const [items, setItems] = useState<PoItem[]>([]);
   const [currentPrNumber, setCurrentPrNumber] = useState('');
   const [lookupData, setLookupData] = useState<LookupData>({});
@@ -43,11 +18,6 @@ const App = () => {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
-  const [oldPassword, setOldPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [passwordChangeError, setPasswordChangeError] = useState('');
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -60,20 +30,6 @@ const App = () => {
     hour12: true,
   });
 
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-  const currentTime = new Date().toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: true,
-  });
-
-  useEffect(() => {
-    setCurrentPrNumber(generateUniquePrNumber());
-  }, []);
   const generateRandomDigits = (length: number) => {
     let result = '';
     for (let i = 0; i < length; i++) {
@@ -85,6 +41,36 @@ const App = () => {
   const generateUniquePrNumber = () => {
     return `PR# ${generateRandomDigits(6)}`;
   };
+
+  useEffect(() => {
+    setCurrentPrNumber(generateUniquePrNumber());
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setLoggedInUser(session.user.email || session.user.id);
+        setShowLoginDialog(false);
+      } else {
+        setLoggedInUser(null);
+        setShowLoginDialog(true);
+      }
+    });
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session) {
+          setLoggedInUser(session.user.email || session.user.id);
+          setShowLoginDialog(false);
+        } else if (event === 'SIGNED_OUT') {
+          setLoggedInUser(null);
+          setShowLoginDialog(true);
+        }
+      }
+    );
+
+    return () => {
+      authListener.unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     // Load items from local storage on initial render
@@ -113,13 +99,6 @@ const App = () => {
         return entryDate >= fourteenDaysAgo;
       });
       setOrderHistory(filteredHistory);
-    }
-
-    // Check for a previously logged-in user (optional, for persistence)
-    const lastLoggedInUser = localStorage.getItem('loggedInUser');
-    if (lastLoggedInUser) {
-      setLoggedInUser(lastLoggedInUser);
-      setShowLoginDialog(false); // Hide login if user was already logged in
     }
   }, []);
 
@@ -154,66 +133,31 @@ const App = () => {
     }
   }, [loggedInUser]);
 
-  const handleLogin = () => {
-    const user = users.find(
-      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === passwordInput
-    );
+  const handleLogin = async () => {
+    setLoginError('');
+    const { error } = await supabase.auth.signInWithPassword({
+      email: usernameInput,
+      password: passwordInput,
+    });
 
-    if (user) {
-      setLoggedInUser(user.username);
-      setShowLoginDialog(false);
-      setLoginError('');
+    if (error) {
+      setLoginError(error.message);
+    } else {
+      // Supabase auth listener will handle setting loggedInUser and showLoginDialog
       setUsernameInput('');
       setPasswordInput('');
-      // Generate PR number on successful login
-      setCurrentPrNumber(generateUniquePrNumber());
+    }
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      console.error('Error logging out:', error.message);
     } else {
-      setLoginError('Invalid username or password.');
+      // Supabase auth listener will handle setting loggedInUser and showLoginDialog
+      setItems([]); // Clear current items on logout
+      setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
     }
-  };
-
-  const handleLogout = () => {
-    setLoggedInUser(null);
-    setShowLoginDialog(true);
-    setItems([]); // Clear current items on logout
-    setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
-  };
-
-  const handleChangePassword = () => {
-    if (!usernameInput || !oldPassword || !newPassword || !confirmNewPassword) {
-      setPasswordChangeError('All fields are required.');
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      setPasswordChangeError('New password and confirm new password do not match.');
-      return;
-    }
-
-    const userIndex = users.findIndex(
-      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === oldPassword
-    );
-
-    if (userIndex === -1) {
-      setPasswordChangeError('Invalid username or old password.');
-      return;
-    }
-
-    if (newPassword.length < 6) {
-      setPasswordChangeError('New password must be at least 6 characters long.');
-      return;
-    }
-
-    const updatedUsers = [...users];
-    updatedUsers[userIndex].password = newPassword;
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers)); // Save updated users to local storage
-    setPasswordChangeError('');
-    setOldPassword('');
-    setNewPassword('');
-    setConfirmNewPassword('');
-    setShowChangePasswordDialog(false);
-    alert('Password changed successfully!');
   };
 
   const handleExport = () => {
@@ -385,9 +329,7 @@ const App = () => {
             <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
               Login
             </Button>
-            <Button onClick={() => setShowChangePasswordDialog(true)} variant="outlined">
-              Change Password
-            </Button>
+            
           </DialogActions>
         </Dialog>
       ) : (
@@ -441,63 +383,6 @@ const App = () => {
           </Box>
         </Container>
       )}
-
-      <Dialog open={showChangePasswordDialog} onClose={() => setShowChangePasswordDialog(false)}>
-        <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white', fontWeight: 'bold' }}>Change Password</DialogTitle>
-        <DialogContent sx={{ padding: 3 }}>
-          <TextField
-            autoFocus
-            margin="dense"
-            id="old-password"
-            label="Old Password"
-            type="password"
-            fullWidth
-            variant="outlined"
-            value={oldPassword}
-            onChange={(e) => setOldPassword(e.target.value)}
-            sx={{ marginBottom: 2 }}
-          />
-          <TextField
-            margin="dense"
-            id="new-password"
-            label="New Password"
-            type="password"
-            fullWidth
-            variant="outlined"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            sx={{ marginBottom: 2 }}
-          />
-          <TextField
-            margin="dense"
-            id="confirm-new-password"
-            label="Confirm New Password"
-            type="password"
-            fullWidth
-            variant="outlined"
-            value={confirmNewPassword}
-            onChange={(e) => setConfirmNewPassword(e.target.value)}
-            onKeyPress={(e) => {
-              if (e.key === 'Enter') {
-                handleChangePassword();
-              }
-            }}
-          />
-          {passwordChangeError && (
-            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
-              {passwordChangeError}
-            </Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ padding: 2 }}>
-          <Button onClick={() => setShowChangePasswordDialog(false)} color="primary">
-            Cancel
-          </Button>
-          <Button onClick={handleChangePassword} variant="contained" color="primary">
-            Change Password
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {showOrderHistory && (
         <OrderHistoryModal
