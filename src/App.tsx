@@ -49,6 +49,17 @@ const App = () => {
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordChangeError, setPasswordChangeError] = useState('');
 
+  const currentDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const currentTime = new Date().toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+
   useEffect(() => {
     setCurrentPrNumber(generateUniquePrNumber());
   }, []);
