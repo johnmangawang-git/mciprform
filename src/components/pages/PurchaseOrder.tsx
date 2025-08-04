@@ -3,7 +3,7 @@ import Layout from '../layout/Layout';
 import PoTable from '../../components/PoTable';
 import Button from '../ui/Button';
 import styles from './PurchaseOrder.module.css';
-import type { PoItem, LookupData } from '../../types';
+import type { PoItem } from '../../types';
 
 
 
