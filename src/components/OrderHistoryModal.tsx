@@ -2,25 +2,7 @@ import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Button, Box } from '@mui/material';
 import { Close as CloseIcon } from '@mui/icons-material';
 import PoDetailsModal from './PoDetailsModal';
-
-interface PoItem {
-  id: number;
-  itemCode: string;
-  description: string;
-  uom: string;
-  supplier: string;
-  unitPrice: number;
-  quantity: number;
-  amount: number;
-}
-
-interface OrderHistoryEntry {
-  poNumber: string;
-  date: string;
-  time: string;
-  items: PoItem[];
-  status: string;
-}
+import type { PoItem, OrderHistoryEntry } from '../types';
 
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];

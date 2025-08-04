@@ -1,26 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, TextField, Select, MenuItem, IconButton, Box, Typography, Button } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-
-interface PoItem {
-  id: number;
-  itemCode: string;
-  description: string;
-  uom: string;
-  supplier: string;
-  unitPrice: number;
-  quantity: number;
-  amount: number;
-}
-
-interface LookupEntry {
-  description: string;
-  uom: string;
-}
-
-interface LookupData {
-  [itemCode: string]: LookupEntry;
-}
+import type { PoItem, LookupData } from '../types';
 
 interface PoTableProps {
   items: PoItem[];
