@@ -31,6 +31,7 @@ interface OrderHistoryEntry {
   time: string;
   items: PoItem[];
   status: string; // e.g., 'Pending', 'Delivered'
+  user: string;
 }
 
 interface User {
@@ -57,7 +58,7 @@ const USERS: User[] = [
 
 function App() {
   const [items, setItems] = useState<PoItem[]>([]);
-  const poNumber = 'PO-2025-001'; // Placeholder PO Number (static for now)
+  const [currentPrNumber, setCurrentPrNumber] = useState('');
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
@@ -66,6 +67,13 @@ function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+
+  useEffect(() => {
+    const generatePrNumber = () => {
+      return `PR${Math.floor(Math.random() * 1000000)}`;
+    };
+    setCurrentPrNumber(generatePrNumber());
+  }, []);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -168,7 +176,7 @@ function App() {
 
     const data = items.map((item, index) => ({
       'User': loggedInUser || 'N/A', // New User column
-      'PO Number': poNumber, // Added PO Number column
+      'PR Number': currentPrNumber, // Added PR Number column
       '#': index + 1,
       'Item Code': item.itemCode,
       'Description': item.description,
@@ -182,17 +190,24 @@ function App() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-    XLSX.writeFile(wb, `MCI_PO_${poNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
+    XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
 
     // Save to order history
     const newOrder: OrderHistoryEntry = {
-      poNumber: poNumber,
+      poNumber: currentPrNumber,
       date: currentDate,
       time: currentTime,
       items: items, // Save a copy of the current items
       status: 'Pending',
+      user: loggedInUser || 'N/A',
     };
     setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
+
+    // Generate a new PR number for the next order
+    setCurrentPrNumber(`PR${Math.floor(Math.random() * 1000000)}`);
+
+    // Clear current items after successful export
+    setItems([]);
 
     alert('Purchase Order exported successfully and saved to history!');
   };
@@ -252,7 +267,7 @@ function App() {
         <Toolbar sx={{ justifyContent: 'space-between', paddingY: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
-              MCI Online PO Form
+              MCI Online PR Form
             </Typography>
             <Typography variant="caption" sx={{ color: '#616161', fontSize: '0.25rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
@@ -261,7 +276,7 @@ function App() {
           <Box sx={{ textAlign: 'right', color: '#616161' }}>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentDate}</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentTime}</Typography>
-            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PO Number: {poNumber}</Typography>
+            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PR#: {currentPrNumber}</Typography>
             {loggedInUser && (
               <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser}</Typography>
             )}
@@ -368,6 +383,8 @@ function App() {
         <OrderHistoryModal
           orderHistory={orderHistory}
           onClose={() => setShowOrderHistory(false)}
+          loggedInUser={loggedInUser}
+          isAdmin={isAdmin}
         />
       )}
     </Box>

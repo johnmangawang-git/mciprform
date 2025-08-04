@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Dialog, DialogTitle, DialogContent, IconButton, Typography, Button, Box } from '@mui/material';
-import { Close as CloseIcon } from '@mui/icons-material';
+import { Close as CloseIcon, Download as DownloadIcon } from '@mui/icons-material';
 import PoDetailsModal from './PoDetailsModal';
+import * as XLSX from 'xlsx';
 
 interface PoItem {
   id: number;
@@ -12,6 +13,7 @@ interface PoItem {
   unitPrice: number;
   quantity: number;
   amount: number;
+  soh: number;
 }
 
 interface OrderHistoryEntry {
@@ -20,15 +22,59 @@ interface OrderHistoryEntry {
   time: string;
   items: PoItem[];
   status: string;
+  user: string;
 }
 
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
   onClose: () => void;
+  loggedInUser: string | null;
+  isAdmin: boolean;
 }
 
-const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose }) => {
+const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, loggedInUser, isAdmin }) => {
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
+
+  const filteredHistory = isAdmin
+    ? orderHistory
+    : orderHistory.filter((entry) => entry.user === loggedInUser);
+
+  const handleSaveAllOrders = () => {
+    if (orderHistory.length === 0) {
+      alert('No order history to save.');
+      return;
+    }
+
+    const allOrdersData: any[] = [];
+
+    orderHistory.forEach(order => {
+      order.items.forEach((item, itemIndex) => {
+        allOrdersData.push({
+          'PR Number': order.poNumber,
+          'Date': order.date,
+          'Time': order.time,
+          'User': order.user,
+          'Status': order.status,
+          '#': itemIndex + 1,
+          'Item Code': item.itemCode,
+          'Description': item.description,
+          'UOM': item.uom,
+          'Supplier': item.supplier,
+          'Unit Price': item.unitPrice,
+          'Quantity': item.quantity,
+          'Amount': item.amount,
+          'SOH': item.soh,
+        });
+      });
+    });
+
+    const ws = XLSX.utils.json_to_sheet(allOrdersData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'All Orders');
+    XLSX.writeFile(wb, `MCI_All_Orders_${new Date().toLocaleDateString().replace(/\//g, '-')}.xlsx`);
+
+    alert('All orders saved successfully!');
+  };
 
   return (
     <Dialog open onClose={onClose} maxWidth="md" fullWidth>
@@ -45,13 +91,25 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
         </IconButton>
       </DialogTitle>
       <DialogContent dividers sx={{ padding: 3, backgroundColor: '#f5f5f5' }}>
-        {orderHistory.length === 0 ? (
+        {isAdmin && (
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 2 }}>
+            <Button
+              variant="contained"
+              startIcon={<DownloadIcon />}
+              onClick={handleSaveAllOrders}
+              sx={{ backgroundColor: '#007bff', '&:hover': { backgroundColor: '#0056b3' }, padding: '8px 16px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}
+            >
+              Save all Orders
+            </Button>
+          </Box>
+        )}
+        {filteredHistory.length === 0 ? (
           <Typography variant="body1" sx={{ textAlign: 'center', paddingY: 5, color: '#616161' }}>
             No order history available. Submit an order to see it here!
           </Typography>
         ) : (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center' }}>
-            {orderHistory.map((entry, index) => (
+            {filteredHistory.map((entry, index) => (
               <Button
                 key={index}
                 variant="outlined"
@@ -71,7 +129,10 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                 onClick={() => setSelectedPo(entry)}
               >
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121', marginBottom: 1 }}>
-                  PO: {entry.poNumber}
+                  PR#: {entry.poNumber}
+                </Typography>
+                <Typography variant="body2" sx={{ color: '#616161' }}>
+                  Submitted by: {entry.user}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161' }}>
                   Date: {entry.date}
