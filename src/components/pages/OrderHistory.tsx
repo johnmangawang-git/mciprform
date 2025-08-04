@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from '../layout/Layout';
 import OrderHistoryTable from '../ui/OrderHistoryTable';
 import styles from './OrderHistory.module.css';

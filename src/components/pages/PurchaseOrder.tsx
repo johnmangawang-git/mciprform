@@ -3,17 +3,9 @@ import Layout from '../layout/Layout';
 import PoTable from '../../components/PoTable';
 import Button from '../ui/Button';
 import styles from './PurchaseOrder.module.css';
+import type { PoItem, LookupData } from '../../types';
 
-interface PoItem {
-  id: number;
-  itemCode: string;
-  description: string;
-  uom: string;
-  supplier: string;
-  unitPrice: number;
-  quantity: number;
-  amount: number;
-}
+
 
 const PurchaseOrder: React.FC = () => {
   const [items, setItems] = useState<PoItem[]>([]);
