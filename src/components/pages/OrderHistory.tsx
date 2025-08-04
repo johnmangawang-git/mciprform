@@ -5,11 +5,6 @@ import styles from './OrderHistory.module.css';
 import type { OrderHistoryEntry } from '../../types';
 
 const OrderHistory: React.FC = () => {
-  const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
-
-  useEffect(() => {
-    // Fetch order history data
-  }, []);
 
   return (
     <Layout>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import Layout from '../layout/Layout';
-import PoTable from '../ui/PoTable';
+import PoTable from '../../components/PoTable';
 import Button from '../ui/Button';
 import styles from './PurchaseOrder.module.css';
 
