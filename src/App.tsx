@@ -50,10 +50,18 @@ const App = () => {
   const [passwordChangeError, setPasswordChangeError] = useState('');
 
   useEffect(() => {
-    const generatePrNumber = () => {
-      return `PR${Math.floor(Math.random() * 1000000)}`;
+    const generateRandomDigits = (length: number) => {
+      let result = '';
+      for (let i = 0; i < length; i++) {
+        result += Math.floor(Math.random() * 10);
+      }
+      return result;
     };
-    setCurrentPrNumber(generatePrNumber());
+
+    const generateNewPrNumber = () => {
+      return `PR# ${generateRandomDigits(6)}`;
+    };
+    setCurrentPrNumber(generateNewPrNumber());
   }, []);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
@@ -67,10 +75,9 @@ const App = () => {
     hour12: true,
   });
 
-  // Function to generate a unique PO number (now PR number)
-  const generateUniquePrNumber = (user: string | null) => {
-    const userPrefix = user ? user.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : 'GUEST';
-    return `PR-${userPrefix}-${Date.now()}`;
+  // Function to generate a unique PR number
+  const generateUniquePrNumber = () => {
+    return `PR# ${generateRandomDigits(6)}`;
   };
 
   useEffect(() => {
@@ -113,7 +120,7 @@ const App = () => {
   useEffect(() => {
     // Generate a new PR number when the user logs in or if items are cleared
     if (loggedInUser && items.length === 0) {
-      setCurrentPrNumber(generateUniquePrNumber(loggedInUser));
+      setCurrentPrNumber(generateUniquePrNumber());
     }
   }, [loggedInUser, items]);
 
@@ -163,7 +170,7 @@ const App = () => {
     setLoggedInUser(null);
     setShowLoginDialog(true);
     setItems([]); // Clear current items on logout
-    setCurrentPrNumber(generateUniquePrNumber(null)); // Generate new PR for next session
+    setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
   };
 
   const handleChangePassword = () => {
@@ -259,7 +266,7 @@ const App = () => {
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all items?')) {
       setItems([]);
-      setCurrentPrNumber(generateUniquePrNumber(loggedInUser)); // Generate new PR number on clear
+      setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR number on clear
     }
   };
 
