@@ -12,7 +12,7 @@ interface User {
   role: 'admin' | 'user';
 }
 
-const USERS: User[] = [
+const USERS_INITIAL: User[] = [
   { username: 'admin', password: 'admin', role: 'admin' },
   { username: 'Finance director', password: 'password', role: 'user' },
   { username: 'Gen accounting', password: 'password', role: 'user' },
@@ -28,9 +28,13 @@ const USERS: User[] = [
   { username: 'Service', password: 'password', role: 'user' },
 ];
 
-function App() {
+const App = () => {
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : USERS_INITIAL;
+  });
   const [items, setItems] = useState<PoItem[]>([]);
-  const poNumber = 'PO-2025-001'; // Placeholder PO Number (static for now)
+  const [currentPrNumber, setCurrentPrNumber] = useState('');
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
@@ -39,6 +43,18 @@ function App() {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+
+  useEffect(() => {
+    const generatePrNumber = () => {
+      return `PR${Math.floor(Math.random() * 1000000)}`;
+    };
+    setCurrentPrNumber(generatePrNumber());
+  }, []);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -50,6 +66,12 @@ function App() {
     minute: '2-digit',
     hour12: true,
   });
+
+  // Function to generate a unique PO number (now PR number)
+  const generateUniquePrNumber = (user: string | null) => {
+    const userPrefix = user ? user.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : 'GUEST';
+    return `PR-${userPrefix}-${Date.now()}`;
+  };
 
   useEffect(() => {
     // Load items from local storage on initial render
@@ -64,10 +86,20 @@ function App() {
       setLookupData(JSON.parse(savedLookupData));
     }
 
-    // Load order history from local storage
+    // Load and filter order history from local storage (last 14 days)
     const savedOrderHistory = localStorage.getItem('poOrderHistory');
     if (savedOrderHistory) {
-      setOrderHistory(JSON.parse(savedOrderHistory));
+      const parsedHistory: OrderHistoryEntry[] = JSON.parse(savedOrderHistory);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
+
+      const filteredHistory = parsedHistory.filter(entry => {
+        // Ensure date is parsed correctly, handling potential inconsistencies
+        const [month, day, year] = entry.date.split('/').map(Number);
+        const entryDate = new Date(year, month - 1, day); // Month is 0-indexed
+        return entryDate >= fourteenDaysAgo;
+      });
+      setOrderHistory(filteredHistory);
     }
 
     // Check for a previously logged-in user (optional, for persistence)
@@ -77,6 +109,13 @@ function App() {
       setShowLoginDialog(false); // Hide login if user was already logged in
     }
   }, []);
+
+  useEffect(() => {
+    // Generate a new PR number when the user logs in or if items are cleared
+    if (loggedInUser && items.length === 0) {
+      setCurrentPrNumber(generateUniquePrNumber(loggedInUser));
+    }
+  }, [loggedInUser, items]);
 
   useEffect(() => {
     // Save items to local storage whenever they change
@@ -103,7 +142,7 @@ function App() {
   }, [loggedInUser]);
 
   const handleLogin = () => {
-    const user = USERS.find(
+    const user = users.find(
       (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === passwordInput
     );
 
@@ -113,6 +152,8 @@ function App() {
       setLoginError('');
       setUsernameInput('');
       setPasswordInput('');
+      // Generate PR number on successful login
+      setCurrentPrNumber(generateUniquePrNumber(user.username));
     } else {
       setLoginError('Invalid username or password.');
     }
@@ -122,6 +163,44 @@ function App() {
     setLoggedInUser(null);
     setShowLoginDialog(true);
     setItems([]); // Clear current items on logout
+    setCurrentPrNumber(generateUniquePrNumber(null)); // Generate new PR for next session
+  };
+
+  const handleChangePassword = () => {
+    if (!usernameInput || !oldPassword || !newPassword || !confirmNewPassword) {
+      setPasswordChangeError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeError('New password and confirm new password do not match.');
+      return;
+    }
+
+    const userIndex = users.findIndex(
+      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === oldPassword
+    );
+
+    if (userIndex === -1) {
+      setPasswordChangeError('Invalid username or old password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordChangeError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex].password = newPassword;
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers)); // Save updated users to local storage
+    setPasswordChangeError('');
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowChangePasswordDialog(false);
+    alert('Password changed successfully!');
   };
 
   const handleExport = () => {
@@ -141,7 +220,7 @@ function App() {
 
     const data = items.map((item, index) => ({
       'User': loggedInUser || 'N/A', // New User column
-      'PO Number': poNumber, // Added PO Number column
+      'PR Number': currentPrNumber, // Added PR Number column
       '#': index + 1,
       'Item Code': item.itemCode,
       'Description': item.description,
@@ -155,17 +234,24 @@ function App() {
     const ws = XLSX.utils.json_to_sheet(data);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-    XLSX.writeFile(wb, `MCI_PO_${poNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
+    XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
 
     // Save to order history
     const newOrder: OrderHistoryEntry = {
-      poNumber: poNumber,
+      poNumber: currentPrNumber,
       date: currentDate,
       time: currentTime,
       items: items, // Save a copy of the current items
       status: 'Pending',
+      user: loggedInUser || 'N/A',
     };
     setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
+
+    // Generate a new PR number for the next order
+    setCurrentPrNumber(`PR${Math.floor(Math.random() * 1000000)}`);
+
+    // Clear current items after successful export
+    setItems([]);
 
     alert('Purchase Order exported successfully and saved to history!');
   };
@@ -173,6 +259,7 @@ function App() {
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all items?')) {
       setItems([]);
+      setCurrentPrNumber(generateUniquePrNumber(loggedInUser)); // Generate new PR number on clear
     }
   };
 
@@ -219,22 +306,24 @@ function App() {
 
   const isAdmin = loggedInUser === 'admin';
 
+  console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
+
   return (
     <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh', padding: 3 }}>
       <AppBar position="static" sx={{ backgroundColor: '#fff', borderRadius: '12px', boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.08)', marginBottom: 4 }}>
         <Toolbar sx={{ justifyContent: 'space-between', paddingY: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
-              MCI Online PO Form
+              MCI Online PR Form
             </Typography>
-            <Typography variant="caption" sx={{ color: '#616161', fontSize: '0.25rem', lineHeight: 1, marginTop: '-4px' }}>
+            <Typography sx={{ color: '#616161', fontSize: '0.6rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
             </Typography>
           </Box>
           <Box sx={{ textAlign: 'right', color: '#616161' }}>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentDate}</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentTime}</Typography>
-            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PO Number: {poNumber}</Typography>
+            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PR#: {currentPrNumber}</Typography>
             {loggedInUser && (
               <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser}</Typography>
             )}
@@ -282,6 +371,9 @@ function App() {
           <DialogActions sx={{ padding: 2 }}>
             <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
               Login
+            </Button>
+            <Button onClick={() => setShowChangePasswordDialog(true)} variant="outlined">
+              Change Password
             </Button>
           </DialogActions>
         </Dialog>
@@ -337,14 +429,73 @@ function App() {
         </Container>
       )}
 
+      <Dialog open={showChangePasswordDialog} onClose={() => setShowChangePasswordDialog(false)}>
+        <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white', fontWeight: 'bold' }}>Change Password</DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="old-password"
+            label="Old Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={oldPassword}
+            onChange={(e) => setOldPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="new-password"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="confirm-new-password"
+            label="Confirm New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleChangePassword();
+              }
+            }}
+          />
+          {passwordChangeError && (
+            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
+              {passwordChangeError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ padding: 2 }}>
+          <Button onClick={() => setShowChangePasswordDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleChangePassword} variant="contained" color="primary">
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {showOrderHistory && (
         <OrderHistoryModal
           orderHistory={orderHistory}
           onClose={() => setShowOrderHistory(false)}
+          loggedInUser={loggedInUser}
+          isAdmin={isAdmin}
         />
       )}
     </Box>
   );
-}
+};
 
 export default App;

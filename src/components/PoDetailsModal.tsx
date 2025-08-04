@@ -12,7 +12,7 @@ const PoDetailsModal: React.FC<PoDetailsModalProps> = ({ poDetails, onClose }) =
   return (
     <Dialog open onClose={onClose} maxWidth="lg" fullWidth>
       <DialogTitle sx={{ m: 0, p: 3, backgroundColor: '#1976d2', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>PO Details: {poDetails.poNumber}</Typography>
+        <Typography variant="h5" sx={{ fontWeight: 'bold' }}>PR Details: {poDetails.poNumber}</Typography>
         <IconButton
           aria-label="close"
           onClick={onClose}
@@ -42,8 +42,10 @@ const PoDetailsModal: React.FC<PoDetailsModalProps> = ({ poDetails, onClose }) =
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Item Code</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Description</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>UOM</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Supplier</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Unit Price</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Quantity</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>SOH</TableCell>
                 <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Amount</TableCell>
               </TableRow>
             </TableHead>
@@ -56,8 +58,10 @@ const PoDetailsModal: React.FC<PoDetailsModalProps> = ({ poDetails, onClose }) =
                   <TableCell>{item.itemCode}</TableCell>
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.uom}</TableCell>
+                  <TableCell>{item.supplier}</TableCell>
                   <TableCell>₱{item.unitPrice.toFixed(2)}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
+                  <TableCell>{item.soh}</TableCell>
                   <TableCell>₱{item.amount.toFixed(2)}</TableCell>
                 </TableRow>
               ))}
