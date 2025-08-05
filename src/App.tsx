@@ -4,7 +4,7 @@ import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon,
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
 import * as XLSX from 'xlsx';
-import type { PoItem, LookupData, OrderHistoryEntry } from './types';
+import type { PoItem, LookupData, OrderHistoryEntry, LoggedInUser } from './types';
 import { supabase } from './supabaseClient';
 
 const App = () => {
@@ -287,7 +287,7 @@ const App = () => {
     }
   };
 
-  const handleExport = () => {
+  const handleExport = async () => {
     if (items.length === 0) {
       alert('No items to export.');
       return;
@@ -320,7 +320,7 @@ const App = () => {
     XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
     XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
 
-    const { data: itemsData, error: itemsError } = await supabase
+    const { error: itemsError } = await supabase
       .from('pr_items')
       .insert(items.map(item => ({ ...item, user_id: loggedInUser?.id, pr_number: currentPrNumber })));
 
@@ -340,7 +340,7 @@ const App = () => {
       user: loggedInUser?.email || 'N/A',
     };
 
-    const { data: orderHistoryData, error: orderHistoryError } = await supabase
+    const { error: orderHistoryError } = await supabase
       .from('order_history')
       .insert([{ ...newOrder, user_id: loggedInUser?.id }]);
 
@@ -372,7 +372,7 @@ const App = () => {
     window.print();
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 

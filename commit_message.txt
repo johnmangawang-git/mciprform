@@ -1,0 +1,1 @@
+feat: Implement Supabase data persistence and real-time sync, and RBAC
