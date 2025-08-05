@@ -404,21 +404,10 @@ const App = () => {
           }
         }
 
-        // Delete existing lookup data for the user
-        const { error: deleteError } = await supabase
+        // Upsert new lookup data
+        const { error: upsertError } = await supabase
           .from('lookup_data')
-          .delete();
-
-        if (deleteError) {
-          console.error('Error deleting old lookup data:', deleteError.message);
-          alert('Failed to update lookup data.');
-          return;
-        }
-
-        // Insert new lookup data
-        const { error: insertError } = await supabase
-          .from('lookup_data')
-          .insert(newLookupArray.map(item => ({ ...item })));
+          .upsert(newLookupArray, { onConflict: 'item_code' });
 
         if (insertError) {
           console.error('Error inserting new lookup data:', insertError.message);
