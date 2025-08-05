@@ -162,7 +162,8 @@ const App = () => {
       if (loggedInUser) {
         const { data, error } = await supabase
           .from('lookup_data')
-          .select('*');
+          .select('*')
+          .eq('user_id', loggedInUser.id);
 
         if (error) {
           console.error('Error fetching lookup data:', error.message);
@@ -181,7 +182,7 @@ const App = () => {
       .channel('lookup_data_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'lookup_data' },
+        { event: '*', schema: 'public', table: 'lookup_data', filter: `user_id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Lookup data change received!', payload);
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
