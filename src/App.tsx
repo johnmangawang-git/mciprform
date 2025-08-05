@@ -390,7 +390,6 @@ const App = () => {
         const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
         const newLookup: LookupData = {};
-        const newLookupArray: { item_code: string; description: string; uom: string; }[] = [];
 
         for (let i = 1; i < rawData.length; i++) {
           const row = rawData[i];
@@ -400,9 +399,15 @@ const App = () => {
 
           if (itemCode && description && uom) {
             newLookup[itemCode] = { description, uom };
-            newLookupArray.push({ item_code: itemCode, description, uom });
           }
         }
+
+        // Convert the newLookup object (which has unique item_codes) into an array for upsert
+        const newLookupArray = Object.keys(newLookup).map(itemCode => ({
+          item_code: itemCode,
+          description: newLookup[itemCode].description,
+          uom: newLookup[itemCode].uom,
+        }));
 
         // Upsert new lookup data
         const { error: upsertError } = await supabase
