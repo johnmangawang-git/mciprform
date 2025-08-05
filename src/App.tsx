@@ -22,6 +22,36 @@ const App = () => {
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleTestDbWrite = async () => {
+    console.log('--- STARTING DATABASE WRITE TEST ---');
+    if (!loggedInUser) {
+      console.error('Test failed: Must be logged in to perform this test.');
+      alert('Test failed: Must be logged in to perform this test.');
+      return;
+    }
+
+    const testData = {
+      user_id: loggedInUser.id,
+      item_code: 'test-item',
+      description: 'This is a temporary test item.',
+      uom: 'pcs',
+    };
+
+    const { data, error } = await supabase.from('lookup_data').insert([testData]);
+
+    if (error) {
+      console.error('DATABASE WRITE TEST FAILED:', error.message);
+      alert(`DATABASE WRITE TEST FAILED: ${error.message}`);
+    } else {
+      console.log('DATABASE WRITE TEST SUCCEEDED:', data);
+      alert('DATABASE WRITE TEST SUCCEEDED! Check the console for details.');
+      // Clean up the test data
+      await supabase.from('lookup_data').delete().match({ item_code: 'test-item' });
+    }
+
+    console.log('--- FINISHED DATABASE WRITE TEST ---');
+  };
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -554,6 +584,9 @@ const App = () => {
             </Button>
             <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Submit Order
+            </Button>
+            <Button variant="contained" onClick={handleTestDbWrite} sx={{ backgroundColor: '#ff9800', '&:hover': { backgroundColor: '#f57c00' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
+              Test DB Write
             </Button>
           </Box>
 
