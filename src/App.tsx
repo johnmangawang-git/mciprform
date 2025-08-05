@@ -118,7 +118,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('pr_items')
           .select('*')
-          .eq('user_id', loggedInUser.id);
+          .eq('id', loggedInUser.id);
 
         if (error) {
           console.error('Error fetching items:', error.message);
@@ -133,7 +133,7 @@ const App = () => {
       .channel('pr_items_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pr_items', filter: `user_id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'pr_items', filter: `id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Change received!', payload);
           if (payload.eventType === 'INSERT') {
@@ -164,7 +164,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('lookup_data')
           .select('*')
-          .eq('user_id', loggedInUser.id);
+          .eq('id', loggedInUser.id);
 
         if (error) {
           console.error('Error fetching lookup data:', error.message);
@@ -183,7 +183,7 @@ const App = () => {
       .channel('lookup_data_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'lookup_data', filter: `user_id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'lookup_data', filter: `id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Lookup data change received!', payload);
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -213,7 +213,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('order_history')
           .select('*')
-          .eq('user_id', loggedInUser.id)
+          .eq('id', loggedInUser.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -229,7 +229,7 @@ const App = () => {
       .channel('order_history_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'order_history', filter: `user_id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'order_history', filter: `id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Order history change received!', payload);
           if (payload.eventType === 'INSERT') {
@@ -326,7 +326,7 @@ const App = () => {
 
     const { error: itemsError } = await supabase
       .from('pr_items')
-      .insert(items.map(item => ({ ...item, user_id: loggedInUser?.id, pr_number: currentPrNumber })));
+      .insert(items.map(item => ({ ...item, id: loggedInUser?.id, pr_number: currentPrNumber })));
 
     if (itemsError) {
       console.error('Error saving items to Supabase:', itemsError.message);
@@ -346,7 +346,7 @@ const App = () => {
 
     const { error: orderHistoryError } = await supabase
       .from('order_history')
-      .insert([{ ...newOrder, user_id: loggedInUser?.id }]);
+      .insert([{ ...newOrder, id: loggedInUser?.id }]);
 
     if (orderHistoryError) {
       console.error('Error saving order history to Supabase:', orderHistoryError.message);
@@ -409,7 +409,7 @@ const App = () => {
         const { error: deleteError } = await supabase
           .from('lookup_data')
           .delete()
-          .eq('user_id', loggedInUser?.id);
+          .eq('id', loggedInUser?.id);
 
         if (deleteError) {
           console.error('Error deleting old lookup data:', deleteError.message);
@@ -420,7 +420,7 @@ const App = () => {
         // Insert new lookup data
         const { error: insertError } = await supabase
           .from('lookup_data')
-          .insert(newLookupArray.map(item => ({ ...item, user_id: loggedInUser?.id })));
+          .insert(newLookupArray.map(item => ({ ...item, id: loggedInUser?.id })));
 
         if (insertError) {
           console.error('Error inserting new lookup data:', insertError.message);
