@@ -329,10 +329,15 @@ const App = () => {
     const { error: itemsError } = await supabase
       .from('pr_items')
       .insert(items.map(item => ({ 
-        ...item,
         pr_number: currentPrNumber,
         item_code: item.itemCode,
+        description: item.description,
+        uom: item.uom,
+        supplier: item.supplier,
         unit_price: item.unitPrice,
+        quantity: item.quantity,
+        amount: item.amount,
+        soh: item.soh,
       })));
 
     if (itemsError) {
