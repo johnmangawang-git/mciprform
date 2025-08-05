@@ -18,6 +18,7 @@ const App = () => {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -263,6 +264,7 @@ const App = () => {
 
   const handleLogin = async () => {
     setLoginError('');
+    setIsLoading(true);
     const { error } = await supabase.auth.signInWithPassword({
       email: usernameInput,
       password: passwordInput,
@@ -275,6 +277,7 @@ const App = () => {
       setUsernameInput('');
       setPasswordInput('');
     }
+    setIsLoading(false);
   };
 
   const handleLogout = async () => {
@@ -502,8 +505,8 @@ const App = () => {
             )}
           </DialogContent>
           <DialogActions sx={{ padding: 2 }}>
-            <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
-              Login
+            <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />} disabled={isLoading}>
+              {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </DialogActions>
         </Dialog>
