@@ -22,36 +22,6 @@ const App = () => {
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleTestDbWrite = async () => {
-    console.log('--- STARTING DATABASE WRITE TEST ---');
-    if (!loggedInUser) {
-      console.error('Test failed: Must be logged in to perform this test.');
-      alert('Test failed: Must be logged in to perform this test.');
-      return;
-    }
-
-    const testData = {
-      user_id: loggedInUser.id,
-      item_code: 'test-item',
-      description: 'This is a temporary test item.',
-      uom: 'pcs',
-    };
-
-    const { data, error } = await supabase.from('lookup_data').insert([testData]);
-
-    if (error) {
-      console.error('DATABASE WRITE TEST FAILED:', error.message);
-      alert(`DATABASE WRITE TEST FAILED: ${error.message}`);
-    } else {
-      console.log('DATABASE WRITE TEST SUCCEEDED:', data);
-      alert('DATABASE WRITE TEST SUCCEEDED! Check the console for details.');
-      // Clean up the test data
-      await supabase.from('lookup_data').delete().match({ item_code: 'test-item' });
-    }
-
-    console.log('--- FINISHED DATABASE WRITE TEST ---');
-  };
-
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -149,8 +119,7 @@ const App = () => {
       if (loggedInUser) {
         const { data, error } = await supabase
           .from('pr_items')
-          .select('*')
-          .eq('user_id', loggedInUser.id);
+          .select('*');
 
         if (error) {
           console.error('Error fetching items:', error.message);
@@ -165,7 +134,7 @@ const App = () => {
       .channel('pr_items_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pr_items', filter: `user_id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'pr_items' },
         (payload) => {
           console.log('Change received!', payload);
           if (payload.eventType === 'INSERT') {
@@ -195,8 +164,7 @@ const App = () => {
       if (loggedInUser) {
         const { data, error } = await supabase
           .from('lookup_data')
-          .select('*')
-          .eq('user_id', loggedInUser.id);
+          .select('*');
 
         if (error) {
           console.error('Error fetching lookup data:', error.message);
@@ -215,7 +183,7 @@ const App = () => {
       .channel('lookup_data_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'lookup_data', filter: `user_id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'lookup_data' },
         (payload) => {
           console.log('Lookup data change received!', payload);
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -245,7 +213,6 @@ const App = () => {
         const { data, error } = await supabase
           .from('order_history')
           .select('*')
-          .eq('user_id', loggedInUser.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -261,7 +228,7 @@ const App = () => {
       .channel('order_history_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'order_history', filter: `id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'order_history' },
         (payload) => {
           console.log('Order history change received!', payload);
           if (payload.eventType === 'INSERT') {
@@ -358,7 +325,7 @@ const App = () => {
 
     const { error: itemsError } = await supabase
       .from('pr_items')
-      .insert(items.map(item => ({ ...item, id: loggedInUser?.id, pr_number: currentPrNumber })));
+      .insert(items.map(item => ({ ...item, pr_number: currentPrNumber })));
 
     if (itemsError) {
       console.error('Error saving items to Supabase:', itemsError.message);
@@ -378,7 +345,7 @@ const App = () => {
 
     const { error: orderHistoryError } = await supabase
       .from('order_history')
-      .insert([{ ...newOrder, id: loggedInUser?.id }]);
+      .insert([{ ...newOrder }]);
 
     if (orderHistoryError) {
       console.error('Error saving order history to Supabase:', orderHistoryError.message);
@@ -440,8 +407,7 @@ const App = () => {
         // Delete existing lookup data for the user
         const { error: deleteError } = await supabase
           .from('lookup_data')
-          .delete()
-          .eq('id', loggedInUser?.id);
+          .delete();
 
         if (deleteError) {
           console.error('Error deleting old lookup data:', deleteError.message);
@@ -452,7 +418,7 @@ const App = () => {
         // Insert new lookup data
         const { error: insertError } = await supabase
           .from('lookup_data')
-          .insert(newLookupArray.map(item => ({ ...item, user_id: loggedInUser?.id })));
+          .insert(newLookupArray.map(item => ({ ...item })));
 
         if (insertError) {
           console.error('Error inserting new lookup data:', insertError.message);
