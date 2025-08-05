@@ -210,10 +210,13 @@ const App = () => {
   useEffect(() => {
     const fetchOrderHistory = async () => {
       if (loggedInUser) {
-        const { data, error } = await supabase
-          .from('order_history')
-          .select('*')
-          .order('created_at', { ascending: false });
+        let query = supabase.from('order_history').select('*');
+
+        if (loggedInUser.role !== 'admin') {
+          query = query.eq('user', loggedInUser.email);
+        }
+
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) {
           console.error('Error fetching order history:', error.message);

@@ -16,9 +16,7 @@ interface OrderHistoryModalProps {
 
 const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, loggedInUser, isAdmin }) => {
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
-  const filteredHistory = isAdmin
-    ? orderHistory
-    : orderHistory.filter((entry) => entry.user === loggedInUser?.email);
+  const filteredHistory = orderHistory;
   const handleSaveAllOrders = () => {
     if (orderHistory.length === 0) {
       alert('No order history to save.');
