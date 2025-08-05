@@ -118,7 +118,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('pr_items')
           .select('*')
-          .eq('id', loggedInUser.id);
+          .eq('user_id', loggedInUser.id);
 
         if (error) {
           console.error('Error fetching items:', error.message);
@@ -133,7 +133,7 @@ const App = () => {
       .channel('pr_items_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'pr_items', filter: `id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'pr_items', filter: `user_id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Change received!', payload);
           if (payload.eventType === 'INSERT') {
@@ -164,7 +164,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('lookup_data')
           .select('*')
-          .eq('id', loggedInUser.id);
+          .eq('user_id', loggedInUser.id);
 
         if (error) {
           console.error('Error fetching lookup data:', error.message);
@@ -183,7 +183,7 @@ const App = () => {
       .channel('lookup_data_channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'lookup_data', filter: `id=eq.${loggedInUser?.id}` },
+        { event: '*', schema: 'public', table: 'lookup_data', filter: `user_id=eq.${loggedInUser?.id}` },
         (payload) => {
           console.log('Lookup data change received!', payload);
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
@@ -213,7 +213,7 @@ const App = () => {
         const { data, error } = await supabase
           .from('order_history')
           .select('*')
-          .eq('id', loggedInUser.id)
+          .eq('user_id', loggedInUser.id)
           .order('created_at', { ascending: false });
 
         if (error) {
@@ -420,7 +420,7 @@ const App = () => {
         // Insert new lookup data
         const { error: insertError } = await supabase
           .from('lookup_data')
-          .insert(newLookupArray.map(item => ({ ...item, id: loggedInUser?.id })));
+          .insert(newLookupArray.map(item => ({ ...item, user_id: loggedInUser?.id })));
 
         if (insertError) {
           console.error('Error inserting new lookup data:', insertError.message);
