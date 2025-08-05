@@ -423,7 +423,7 @@ const App = () => {
           return;
         }
 
-        setLookupData(newLookup);
+        setLookupData((prev) => ({ ...prev, ...newLookup }));
         alert('Lookup data uploaded successfully!');
       } catch (error) {
         console.error('Error reading Excel file:', error);
