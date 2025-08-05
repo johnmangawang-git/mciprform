@@ -562,7 +562,6 @@ const App = () => {
         <OrderHistoryModal
           orderHistory={orderHistory}
           onClose={() => setShowOrderHistory(false)}
-          loggedInUser={loggedInUser}
           isAdmin={isAdmin}
         />
       )}

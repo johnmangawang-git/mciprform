@@ -10,11 +10,10 @@ import type { LoggedInUser } from '../types';
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
   onClose: () => void;
-  loggedInUser: LoggedInUser | null;
   isAdmin: boolean;
 }
 
-const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, loggedInUser, isAdmin }) => {
+const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, isAdmin }) => {
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
   const filteredHistory = orderHistory;
   const handleSaveAllOrders = () => {
