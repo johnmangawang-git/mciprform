@@ -409,8 +409,8 @@ const App = () => {
           .from('lookup_data')
           .upsert(newLookupArray, { onConflict: 'item_code' });
 
-        if (insertError) {
-          console.error('Error inserting new lookup data:', insertError.message);
+        if (upsertError) {
+          console.error('Error upserting new lookup data:', upsertError.message);
           alert('Failed to update lookup data.');
           return;
         }
