@@ -5,7 +5,7 @@ import PoDetailsModal from './PoDetailsModal';
 import * as XLSX from 'xlsx';
 import type { OrderHistoryEntry } from '../types';
 
-import type { LoggedInUser } from '../types';
+
 
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
