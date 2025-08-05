@@ -13,7 +13,7 @@ const App = () => {
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
+  const [loggedInUser, setLoggedInUser] = useState<LoggedInUser | null>(null);
   const [showLoginDialog, setShowLoginDialog] = useState(true);
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -45,21 +45,51 @@ const App = () => {
   useEffect(() => {
     setCurrentPrNumber(generateUniquePrNumber());
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const getSessionAndProfile = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        setLoggedInUser(session.user.email || session.user.id);
-        setShowLoginDialog(false);
+        const { data: profile, error } = await supabase
+          .from('user_profiles')
+          .select('role')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error.message);
+          setLoggedInUser(null);
+          setShowLoginDialog(true);
+        } else {
+          setLoggedInUser({ id: session.user.id, email: session.user.email || '', role: profile?.role || 'user' });
+          setShowLoginDialog(false);
+        }
       } else {
         setLoggedInUser(null);
         setShowLoginDialog(true);
       }
-    });
+    };
+
+    getSessionAndProfile();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (event === 'SIGNED_IN' && session) {
-          setLoggedInUser(session.user.email || session.user.id);
-          setShowLoginDialog(false);
+          const fetchProfile = async () => {
+            const { data: profile, error } = await supabase
+              .from('user_profiles')
+              .select('role')
+              .eq('user_id', session.user.id)
+              .single();
+
+            if (error) {
+              console.error('Error fetching user profile:', error.message);
+              setLoggedInUser(null);
+              setShowLoginDialog(true);
+            } else {
+              setLoggedInUser({ id: session.user.id, email: session.user.email || '', role: profile?.role || 'user' });
+              setShowLoginDialog(false);
+            }
+          };
+          fetchProfile();
         } else if (event === 'SIGNED_OUT') {
           setLoggedInUser(null);
           setShowLoginDialog(true);
@@ -72,35 +102,7 @@ const App = () => {
     };
   }, []);
 
-  useEffect(() => {
-    // Load items from local storage on initial render
-    const savedItems = localStorage.getItem('poItems');
-    if (savedItems) {
-      setItems(JSON.parse(savedItems));
-    }
-
-    // Load lookup data from local storage
-    const savedLookupData = localStorage.getItem('poLookupData');
-    if (savedLookupData) {
-      setLookupData(JSON.parse(savedLookupData));
-    }
-
-    // Load and filter order history from local storage (last 14 days)
-    const savedOrderHistory = localStorage.getItem('poOrderHistory');
-    if (savedOrderHistory) {
-      const parsedHistory: OrderHistoryEntry[] = JSON.parse(savedOrderHistory);
-      const fourteenDaysAgo = new Date();
-      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
-
-      const filteredHistory = parsedHistory.filter(entry => {
-        // Ensure date is parsed correctly, handling potential inconsistencies
-        const [month, day, year] = entry.date.split('/').map(Number);
-        const entryDate = new Date(year, month - 1, day); // Month is 0-indexed
-        return entryDate >= fourteenDaysAgo;
-      });
-      setOrderHistory(filteredHistory);
-    }
-  }, []);
+  
 
   useEffect(() => {
     // Generate a new PR number when the user logs in or if items are cleared
@@ -110,28 +112,153 @@ const App = () => {
   }, [loggedInUser, items]);
 
   useEffect(() => {
-    // Save items to local storage whenever they change
-    localStorage.setItem('poItems', JSON.stringify(items));
-  }, [items]);
+    const fetchItems = async () => {
+      if (loggedInUser) {
+        const { data, error } = await supabase
+          .from('pr_items')
+          .select('*')
+          .eq('user_id', loggedInUser.id);
 
-  useEffect(() => {
-    // Save lookup data to local storage whenever it changes
-    localStorage.setItem('poLookupData', JSON.stringify(lookupData));
-  }, [lookupData]);
+        if (error) {
+          console.error('Error fetching items:', error.message);
+        } else {
+          setItems(data || []);
+        }
+      }
+    };
+    fetchItems();
 
-  useEffect(() => {
-    // Save order history to local storage whenever it changes
-    localStorage.setItem('poOrderHistory', JSON.stringify(orderHistory));
-  }, [orderHistory]);
+    const itemsSubscription = supabase
+      .channel('pr_items_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'pr_items', filter: `user_id=eq.${loggedInUser?.id}` },
+        (payload) => {
+          console.log('Change received!', payload);
+          if (payload.eventType === 'INSERT') {
+            setItems((prev) => [...prev, payload.new as PoItem]);
+          } else if (payload.eventType === 'UPDATE') {
+            setItems((prev) =>
+              prev.map((item) =>
+                item.id === (payload.new as PoItem).id ? (payload.new as PoItem) : item
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setItems((prev) =>
+              prev.filter((item) => item.id !== (payload.old as PoItem).id)
+            );
+          }
+        }
+      )
+      .subscribe();
 
-  useEffect(() => {
-    // Persist logged-in user
-    if (loggedInUser) {
-      localStorage.setItem('loggedInUser', loggedInUser);
-    } else {
-      localStorage.removeItem('loggedInUser');
-    }
+    return () => {
+      itemsSubscription.unsubscribe();
+    };
   }, [loggedInUser]);
+
+  useEffect(() => {
+    const fetchLookupData = async () => {
+      if (loggedInUser) {
+        const { data, error } = await supabase
+          .from('lookup_data')
+          .select('*');
+
+        if (error) {
+          console.error('Error fetching lookup data:', error.message);
+        } else {
+          const newLookup: LookupData = {};
+          data?.forEach((row: any) => {
+            newLookup[row.item_code.toLowerCase()] = { description: row.description, uom: row.uom };
+          });
+          setLookupData(newLookup);
+        }
+      }
+    };
+    fetchLookupData();
+
+    const lookupSubscription = supabase
+      .channel('lookup_data_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'lookup_data' },
+        (payload) => {
+          console.log('Lookup data change received!', payload);
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            setLookupData((prev) => ({
+              ...prev,
+              [payload.new.item_code.toLowerCase()]: { description: payload.new.description, uom: payload.new.uom },
+            }));
+          } else if (payload.eventType === 'DELETE') {
+            setLookupData((prev) => {
+              const newState = { ...prev };
+              delete newState[payload.old.item_code.toLowerCase()];
+              return newState;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      lookupSubscription.unsubscribe();
+    };
+  }, [loggedInUser]);
+
+  useEffect(() => {
+    const fetchOrderHistory = async () => {
+      if (loggedInUser) {
+        const { data, error } = await supabase
+          .from('order_history')
+          .select('*')
+          .eq('user_id', loggedInUser.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching order history:', error.message);
+        } else {
+          setOrderHistory(data || []);
+        }
+      }
+    };
+    fetchOrderHistory();
+
+    const orderHistorySubscription = supabase
+      .channel('order_history_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'order_history', filter: `user_id=eq.${loggedInUser?.id}` },
+        (payload) => {
+          console.log('Order history change received!', payload);
+          if (payload.eventType === 'INSERT') {
+            setOrderHistory((prev) => [...prev, payload.new as OrderHistoryEntry]);
+          } else if (payload.eventType === 'UPDATE') {
+            setOrderHistory((prev) =>
+              prev.map((entry) =>
+                entry.poNumber === (payload.new as OrderHistoryEntry).poNumber ? (payload.new as OrderHistoryEntry) : entry
+              )
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setOrderHistory((prev) =>
+              prev.filter((entry) => entry.poNumber !== (payload.old as OrderHistoryEntry).poNumber)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      orderHistorySubscription.unsubscribe();
+    };
+  }, [loggedInUser]);
+
+  
+
+  
+
+  
+
+  
 
   const handleLogin = async () => {
     setLoginError('');
@@ -155,8 +282,6 @@ const App = () => {
       console.error('Error logging out:', error.message);
     } else {
       console.log('User logged out successfully.');
-      setLoggedInUser(null); // Explicitly set user to null
-      setShowLoginDialog(true); // Explicitly show login dialog
       setItems([]); // Clear current items on logout
       setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
     }
@@ -178,7 +303,7 @@ const App = () => {
     }
 
     const data = items.map((item, index) => ({
-      'User': loggedInUser || 'N/A', // New User column
+      'User': loggedInUser?.email || 'N/A', // New User column
       'PR Number': currentPrNumber, // Added PR Number column
       '#': index + 1,
       'Item Code': item.itemCode,
@@ -195,6 +320,16 @@ const App = () => {
     XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
     XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
 
+    const { data: itemsData, error: itemsError } = await supabase
+      .from('pr_items')
+      .insert(items.map(item => ({ ...item, user_id: loggedInUser?.id, pr_number: currentPrNumber })));
+
+    if (itemsError) {
+      console.error('Error saving items to Supabase:', itemsError.message);
+      alert('Failed to save items to database.');
+      return;
+    }
+
     // Save to order history
     const newOrder: OrderHistoryEntry = {
       poNumber: currentPrNumber,
@@ -202,8 +337,19 @@ const App = () => {
       time: currentTime,
       items: items, // Save a copy of the current items
       status: 'Pending',
-      user: loggedInUser || 'N/A',
+      user: loggedInUser?.email || 'N/A',
     };
+
+    const { data: orderHistoryData, error: orderHistoryError } = await supabase
+      .from('order_history')
+      .insert([{ ...newOrder, user_id: loggedInUser?.id }]);
+
+    if (orderHistoryError) {
+      console.error('Error saving order history to Supabase:', orderHistoryError.message);
+      alert('Failed to save order history to database.');
+      return;
+    }
+
     setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
 
     // Generate a new PR number for the next order
@@ -241,6 +387,8 @@ const App = () => {
         const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
         const newLookup: LookupData = {};
+        const newLookupArray: { item_code: string; description: string; uom: string; }[] = [];
+
         for (let i = 1; i < rawData.length; i++) {
           const row = rawData[i];
           const itemCode = row[1]?.toString().trim().toLowerCase(); // Column B
@@ -249,8 +397,33 @@ const App = () => {
 
           if (itemCode && description && uom) {
             newLookup[itemCode] = { description, uom };
+            newLookupArray.push({ item_code: itemCode, description, uom });
           }
         }
+
+        // Delete existing lookup data for the user
+        const { error: deleteError } = await supabase
+          .from('lookup_data')
+          .delete()
+          .eq('user_id', loggedInUser?.id);
+
+        if (deleteError) {
+          console.error('Error deleting old lookup data:', deleteError.message);
+          alert('Failed to update lookup data.');
+          return;
+        }
+
+        // Insert new lookup data
+        const { error: insertError } = await supabase
+          .from('lookup_data')
+          .insert(newLookupArray.map(item => ({ ...item, user_id: loggedInUser?.id })));
+
+        if (insertError) {
+          console.error('Error inserting new lookup data:', insertError.message);
+          alert('Failed to update lookup data.');
+          return;
+        }
+
         setLookupData(newLookup);
         alert('Lookup data uploaded successfully!');
       } catch (error) {
@@ -263,7 +436,7 @@ const App = () => {
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
-  const isAdmin = loggedInUser === 'admin';
+  const isAdmin = loggedInUser?.role === 'admin';
 
   console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
 
@@ -284,7 +457,7 @@ const App = () => {
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentTime}</Typography>
             <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PR#: {currentPrNumber}</Typography>
             {loggedInUser && (
-              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser.email}</Typography>
             )}
           </Box>
         </Toolbar>

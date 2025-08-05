@@ -27,3 +27,9 @@ export interface OrderHistoryEntry {
   status: string; // e.g., 'Pending', 'Delivered'
   user: string;
 }
+
+export interface LoggedInUser {
+  id: string;
+  email: string;
+  role: string;
+}

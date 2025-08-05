@@ -5,10 +5,12 @@ import PoDetailsModal from './PoDetailsModal';
 import * as XLSX from 'xlsx';
 import type { OrderHistoryEntry } from '../types';
 
+import type { LoggedInUser } from '../types';
+
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
   onClose: () => void;
-  loggedInUser: string | null;
+  loggedInUser: LoggedInUser | null;
   isAdmin: boolean;
 }
 
@@ -16,7 +18,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
   const filteredHistory = isAdmin
     ? orderHistory
-    : orderHistory.filter((entry) => entry.user === loggedInUser);
+    : orderHistory.filter((entry) => entry.user === loggedInUser?.email);
   const handleSaveAllOrders = () => {
     if (orderHistory.length === 0) {
       alert('No order history to save.');
