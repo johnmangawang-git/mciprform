@@ -30,7 +30,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
           'PR Number': order.poNumber,
           'Date': order.date,
           'Time': order.time,
-          'User': order.user,
+          'User': order.user_id,
           'Status': order.status,
           '#': itemIndex + 1,
           'Item Code': item.itemCode,
@@ -109,7 +109,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                   PR#: {entry.poNumber}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161' }}>
-                  Submitted by: {entry.user}
+                  Submitted by: {entry.user_id}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161' }}>
                   Date: {entry.date}
@@ -125,7 +125,7 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                 </Typography>
                 {isAdmin && (
                   <Typography variant="body2" sx={{ color: '#616161', marginTop: 1 }}>
-                    User: {entry.user}
+                    User: {entry.user_id}
                   </Typography>
                 )}
               </Button>
