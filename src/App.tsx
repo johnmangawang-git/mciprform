@@ -22,6 +22,26 @@ const App = () => {
   const [loginError, setLoginError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
+  const handleDebug = async () => {
+    console.log('--- STARTING DATABASE DEBUG ---');
+
+    const tablesToDebug = ['user_profiles', 'pr_items', 'lookup_data', 'order_history'];
+
+    for (const table of tablesToDebug) {
+      const { data, error } = await supabase.from(table).select('*').limit(1);
+
+      if (error) {
+        console.error(`Error fetching from ${table}:`, error.message);
+      } else if (data && data.length > 0) {
+        console.log(`Structure of ${table}:`, data[0]);
+      } else {
+        console.log(`No data found in ${table}.`);
+      }
+    }
+
+    console.log('--- FINISHED DATABASE DEBUG ---');
+  };
+
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -554,6 +574,9 @@ const App = () => {
             </Button>
             <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Submit Order
+            </Button>
+            <Button variant="contained" onClick={handleDebug} sx={{ backgroundColor: '#ff9800', '&:hover': { backgroundColor: '#f57c00' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
+              Debug
             </Button>
           </Box>
 
