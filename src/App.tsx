@@ -328,7 +328,12 @@ const App = () => {
 
     const { error: itemsError } = await supabase
       .from('pr_items')
-      .insert(items.map(item => ({ ...item, pr_number: currentPrNumber })));
+      .insert(items.map(item => ({ 
+        ...item,
+        pr_number: currentPrNumber,
+        item_code: item.itemCode,
+        unit_price: item.unitPrice,
+      })));
 
     if (itemsError) {
       console.error('Error saving items to Supabase:', itemsError.message);
