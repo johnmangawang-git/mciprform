@@ -25,7 +25,7 @@ export interface OrderHistoryEntry {
   time: string;
   items: PoItem[];
   status: string; // e.g., 'Pending', 'Delivered'
-  user: string;
+  user_id: string;
 }
 
 export interface LoggedInUser {

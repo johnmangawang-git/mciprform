@@ -213,7 +213,7 @@ const App = () => {
         let query = supabase.from('order_history').select('*');
 
         if (loggedInUser.role !== 'admin') {
-          query = query.eq('user', loggedInUser.email);
+          query = query.eq('user_id', loggedInUser.id);
         }
 
         const { data, error } = await query.order('created_at', { ascending: false });
@@ -348,7 +348,7 @@ const App = () => {
       time: currentTime,
       items: items, // Save a copy of the current items
       status: 'Pending',
-      user: loggedInUser?.email || 'N/A',
+      user_id: loggedInUser?.id || '',
     };
 
     const { error: orderHistoryError } = await supabase
