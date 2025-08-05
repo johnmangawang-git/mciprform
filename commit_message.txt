@@ -1,1 +1,1 @@
-feat: Implement Supabase data persistence and real-time sync, and RBAC
+fix: Resolve TypeScript errors in App.tsx
