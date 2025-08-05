@@ -7,6 +7,8 @@ import * as XLSX from 'xlsx';
 import type { PoItem, LookupData, OrderHistoryEntry, LoggedInUser } from './types';
 import { supabase } from './supabaseClient';
 
+console.log('Running version 1.0.1');
+
 const App = () => {
   const [items, setItems] = useState<PoItem[]>([]);
   const [currentPrNumber, setCurrentPrNumber] = useState('');
