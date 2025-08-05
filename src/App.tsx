@@ -52,7 +52,7 @@ const App = () => {
         const { data: profile, error } = await supabase
           .from('user_profiles')
           .select('role')
-          .eq('user_id', session.user.id)
+          .eq('id', session.user.id)
           .single();
 
         if (error) {
@@ -78,7 +78,7 @@ const App = () => {
             const { data: profile, error } = await supabase
               .from('user_profiles')
               .select('role')
-              .eq('user_id', session.user.id)
+              .eq('id', session.user.id)
               .single();
 
             if (error) {
