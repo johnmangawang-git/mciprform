@@ -5,8 +5,6 @@ import PoDetailsModal from './PoDetailsModal';
 import * as XLSX from 'xlsx';
 import type { OrderHistoryEntry } from '../types';
 
-
-
 interface OrderHistoryModalProps {
   orderHistory: OrderHistoryEntry[];
   onClose: () => void;
@@ -15,7 +13,7 @@ interface OrderHistoryModalProps {
 
 const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onClose, isAdmin }) => {
   const [selectedPo, setSelectedPo] = useState<OrderHistoryEntry | null>(null);
-  const filteredHistory = orderHistory;
+  
   const handleSaveAllOrders = () => {
     if (orderHistory.length === 0) {
       alert('No order history to save.');
@@ -25,24 +23,44 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
     const allOrdersData: any[] = [];
 
     orderHistory.forEach(order => {
-      order.items.forEach((item, itemIndex) => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach((item, itemIndex) => {
+          allOrdersData.push({
+            'PR Number': order.poNumber,
+            'Date': order.date,
+            'Time': order.time,
+            'User ID': order.user_id,
+            'Status': order.status,
+            '#': itemIndex + 1,
+            'Item Code': item.itemCode,
+            'Description': item.description,
+            'UOM': item.uom,
+            'Supplier': item.supplier,
+            'Unit Price': item.unitPrice,
+            'Quantity': item.quantity,
+            'Amount': item.amount,
+            'SOH': item.soh,
+          });
+        });
+      } else {
+        // If no items, still add the order info
         allOrdersData.push({
           'PR Number': order.poNumber,
           'Date': order.date,
           'Time': order.time,
-          'User': order.user_id,
+          'User ID': order.user_id,
           'Status': order.status,
-          '#': itemIndex + 1,
-          'Item Code': item.itemCode,
-          'Description': item.description,
-          'UOM': item.uom,
-          'Supplier': item.supplier,
-          'Unit Price': item.unitPrice,
-          'Quantity': item.quantity,
-          'Amount': item.amount,
-          'SOH': item.soh,
+          '#': 0,
+          'Item Code': 'No items',
+          'Description': 'No items in this order',
+          'UOM': '',
+          'Supplier': '',
+          'Unit Price': 0,
+          'Quantity': 0,
+          'Amount': 0,
+          'SOH': 0,
         });
-      });
+      }
     });
 
     const ws = XLSX.utils.json_to_sheet(allOrdersData);
@@ -80,15 +98,15 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
             </Button>
           </Box>
         )}
-        {filteredHistory.length === 0 ? (
+        {orderHistory.length === 0 ? (
           <Typography variant="body1" sx={{ textAlign: 'center', paddingY: 5, color: '#616161' }}>
             No order history available. Submit an order to see it here!
           </Typography>
         ) : (
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center' }}>
-            {filteredHistory.map((entry, index) => (
+            {orderHistory.map((entry, index) => (
               <Button
-                key={index}
+                key={entry.id || index}
                 variant="outlined"
                 sx={{
                   display: 'flex',
@@ -101,15 +119,12 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                   textTransform: 'none',
                   transition: 'all 0.3s ease',
                   '&:hover': { borderColor: '#1976d2', boxShadow: '0px 4px 15px rgba(0, 0, 0, 0.1)' },
-                  width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.33% - 16px)' }, // Responsive width
+                  width: { xs: '100%', sm: 'calc(50% - 12px)', md: 'calc(33.33% - 16px)' },
                 }}
                 onClick={() => setSelectedPo(entry)}
               >
                 <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121', marginBottom: 1 }}>
-                  PR#: {entry.poNumber}
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#616161' }}>
-                  Submitted by: {entry.user_id}
+                  {entry.poNumber}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161' }}>
                   Date: {entry.date}
@@ -118,11 +133,16 @@ const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ orderHistory, onC
                   Time: {entry.time}
                 </Typography>
                 <Typography variant="body2" sx={{ color: '#616161', marginTop: 1 }}>
-                  Items: {entry.items.length}
+                  Items: {entry.items ? entry.items.length : 0}
                 </Typography>
                 <Typography variant="body2" sx={{ fontWeight: 'medium', color: '#388e3c', marginTop: 1 }}>
                   Status: {entry.status}
                 </Typography>
+                {entry.total_amount && (
+                  <Typography variant="body2" sx={{ color: '#616161', marginTop: 1 }}>
+                    Total: ₱{entry.total_amount.toFixed(2)}
+                  </Typography>
+                )}
                 {isAdmin && (
                   <Typography variant="body2" sx={{ color: '#616161', marginTop: 1 }}>
                     User: {entry.user_id}

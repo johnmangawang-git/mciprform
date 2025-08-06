@@ -28,6 +28,7 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
       ...prevItems,
       {
         id: nextId,
+        pr_number: '', // Add pr_number field
         itemCode: '',
         description: '',
         uom: '', // Default to empty string for UOM
@@ -76,6 +77,7 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
           <TableHead sx={{ backgroundColor: '#f5f5f5' }}>
             <TableRow>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>#</TableCell>
+              <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>PR Number</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Item Code</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>Description</TableCell>
               <TableCell sx={{ fontWeight: 'bold', color: '#424242' }}>UOM</TableCell>
@@ -92,6 +94,15 @@ const PoTable: React.FC<PoTableProps> = ({ items, setItems, lookupData }) => {
               <TableRow key={item.id} sx={{ '&:last-child td, &:last-child th': { border: 0 }, '&:hover': { backgroundColor: '#e3f2fd' } }}>
                 <TableCell component="th" scope="row">
                   {index + 1}
+                </TableCell>
+                <TableCell>
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    size="small"
+                    value={item.pr_number}
+                    onChange={(e) => handleInputChange(item.id, 'pr_number', e.target.value)}
+                  />
                 </TableCell>
                 <TableCell>
                   <TextField

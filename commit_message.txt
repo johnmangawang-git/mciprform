@@ -1,1 +1,1 @@
-fix: Resolve TypeScript errors in App.tsx
+fix: Resolve remaining await errors in App.tsx

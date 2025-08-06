@@ -4,7 +4,7 @@ import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon,
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
 import * as XLSX from 'xlsx';
-import type { PoItem, LookupData, OrderHistoryEntry, LoggedInUser } from './types';
+import type { PoItem, LookupData, OrderHistoryEntry, LoggedInUser, DbPoItem, DbOrderHistory } from './types';
 import { supabase } from './supabaseClient';
 
 console.log('Running version 1.0.1');
@@ -124,7 +124,22 @@ const App = () => {
         if (error) {
           console.error('Error fetching items:', error.message);
         } else {
-          setItems(data || []);
+          // Transform database data to match frontend interface
+          const transformedItems: PoItem[] = (data || []).map((item: any) => ({
+            id: item.id,
+            pr_number: item.pr_number,
+            itemCode: item.item_code,
+            description: item.description,
+            uom: item.uom,
+            supplier: item.supplier,
+            unitPrice: item.unit_price,
+            quantity: item.quantity,
+            amount: item.amount,
+            soh: item.soh,
+            created_at: item.created_at,
+            user_id: item.user_id,
+          }));
+          setItems(transformedItems);
         }
       }
     };
@@ -138,16 +153,47 @@ const App = () => {
         (payload) => {
           console.log('Change received!', payload);
           if (payload.eventType === 'INSERT') {
-            setItems((prev) => [...prev, payload.new as PoItem]);
+            const newItem = payload.new as any;
+            const transformedItem: PoItem = {
+              id: newItem.id,
+              pr_number: newItem.pr_number,
+              itemCode: newItem.item_code,
+              description: newItem.description,
+              uom: newItem.uom,
+              supplier: newItem.supplier,
+              unitPrice: newItem.unit_price,
+              quantity: newItem.quantity,
+              amount: newItem.amount,
+              soh: newItem.soh,
+              created_at: newItem.created_at,
+              user_id: newItem.user_id,
+            };
+            setItems((prev) => [...prev, transformedItem]);
           } else if (payload.eventType === 'UPDATE') {
+            const updatedItem = payload.new as any;
+            const transformedItem: PoItem = {
+              id: updatedItem.id,
+              pr_number: updatedItem.pr_number,
+              itemCode: updatedItem.item_code,
+              description: updatedItem.description,
+              uom: updatedItem.uom,
+              supplier: updatedItem.supplier,
+              unitPrice: updatedItem.unit_price,
+              quantity: updatedItem.quantity,
+              amount: updatedItem.amount,
+              soh: updatedItem.soh,
+              created_at: updatedItem.created_at,
+              user_id: updatedItem.user_id,
+            };
             setItems((prev) =>
               prev.map((item) =>
-                item.id === (payload.new as PoItem).id ? (payload.new as PoItem) : item
+                item.id === transformedItem.id ? transformedItem : item
               )
             );
           } else if (payload.eventType === 'DELETE') {
+            const deletedItem = payload.old as any;
             setItems((prev) =>
-              prev.filter((item) => item.id !== (payload.old as PoItem).id)
+              prev.filter((item) => item.id !== deletedItem.id)
             );
           }
         }
@@ -210,23 +256,49 @@ const App = () => {
   useEffect(() => {
     const fetchOrderHistory = async () => {
       if (loggedInUser) {
-        let query = supabase.from('order_history').select('*');
+        try {
+          let query = supabase
+            .from('order_history')
+            .select('*')
+            .order('created_at', { ascending: false });
 
-        if (loggedInUser.role !== 'admin') {
-          query = query.eq('user_id', loggedInUser.id);
-        }
+          // If not admin, only show user's own orders
+          if (loggedInUser.role !== 'admin') {
+            query = query.eq('user_id', loggedInUser.id);
+          }
 
-        const { data, error } = await query.order('created_at', { ascending: false });
+          const { data, error } = await query;
 
-        if (error) {
-          console.error('Error fetching order history:', error.message);
-        } else {
-          setOrderHistory(data || []);
+          if (error) {
+            console.error('Error fetching order history:', error.message);
+            setOrderHistory([]);
+          } else {
+            // Transform database data to match frontend interface
+            const transformedData: OrderHistoryEntry[] = (data || []).map((entry: any) => ({
+              id: entry.id,
+              poNumber: entry.po_number,
+              date: entry.date,
+              time: entry.time,
+              items: entry.items_data || [],
+              status: entry.status,
+              user_id: entry.user_id,
+              created_at: entry.created_at,
+              total_amount: entry.total_amount,
+              total_items: entry.total_items,
+            }));
+            
+            setOrderHistory(transformedData);
+          }
+        } catch (error) {
+          console.error('Error in fetchOrderHistory:', error);
+          setOrderHistory([]);
         }
       }
     };
+
     fetchOrderHistory();
 
+    // Set up real-time subscription for order history
     const orderHistorySubscription = supabase
       .channel('order_history_channel')
       .on(
@@ -234,17 +306,50 @@ const App = () => {
         { event: '*', schema: 'public', table: 'order_history' },
         (payload) => {
           console.log('Order history change received!', payload);
+          
           if (payload.eventType === 'INSERT') {
-            setOrderHistory((prev) => [...prev, payload.new as OrderHistoryEntry]);
+            const newEntry = payload.new as any;
+            const transformedEntry: OrderHistoryEntry = {
+              id: newEntry.id,
+              poNumber: newEntry.po_number,
+              date: newEntry.date,
+              time: newEntry.time,
+              items: newEntry.items_data || [],
+              status: newEntry.status,
+              user_id: newEntry.user_id,
+              created_at: newEntry.created_at,
+              total_amount: newEntry.total_amount,
+              total_items: newEntry.total_items,
+            };
+            
+            // Only add if user is admin or it's their own order
+            if (loggedInUser?.role === 'admin' || newEntry.user_id === loggedInUser?.id) {
+              setOrderHistory((prev) => [transformedEntry, ...prev]);
+            }
           } else if (payload.eventType === 'UPDATE') {
+            const updatedEntry = payload.new as any;
+            const transformedEntry: OrderHistoryEntry = {
+              id: updatedEntry.id,
+              poNumber: updatedEntry.po_number,
+              date: updatedEntry.date,
+              time: updatedEntry.time,
+              items: updatedEntry.items_data || [],
+              status: updatedEntry.status,
+              user_id: updatedEntry.user_id,
+              created_at: updatedEntry.created_at,
+              total_amount: updatedEntry.total_amount,
+              total_items: updatedEntry.total_items,
+            };
+            
             setOrderHistory((prev) =>
               prev.map((entry) =>
-                entry.poNumber === (payload.new as OrderHistoryEntry).poNumber ? (payload.new as OrderHistoryEntry) : entry
+                entry.id === updatedEntry.id ? transformedEntry : entry
               )
             );
           } else if (payload.eventType === 'DELETE') {
+            const deletedEntry = payload.old as any;
             setOrderHistory((prev) =>
-              prev.filter((entry) => entry.poNumber !== (payload.old as OrderHistoryEntry).poNumber)
+              prev.filter((entry) => entry.id !== deletedEntry.id)
             );
           }
         }
@@ -255,14 +360,6 @@ const App = () => {
       orderHistorySubscription.unsubscribe();
     };
   }, [loggedInUser]);
-
-  
-
-  
-
-  
-
-  
 
   const handleLogin = async () => {
     setLoginError('');
@@ -308,27 +405,15 @@ const App = () => {
       return;
     }
 
-    const data = items.map((item, index) => ({
-      'User': loggedInUser?.email || 'N/A', // New User column
-      'PR Number': currentPrNumber, // Added PR Number column
-      '#': index + 1,
-      'Item Code': item.itemCode,
-      'Description': item.description,
-      'UOM': item.uom,
-      'Supplier': item.supplier,
-      'Unit Price': item.unitPrice,
-      'Quantity': item.quantity,
-      'Amount': item.amount,
-    }));
+    try {
+      setIsLoading(true);
 
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-    XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
+      // Calculate totals
+      const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
+      const totalItems = items.length;
 
-    const { error: itemsError } = await supabase
-      .from('pr_items')
-      .insert(items.map(item => ({ 
+      // Prepare items for database insertion
+      const dbItems: DbPoItem[] = items.map(item => ({
         pr_number: currentPrNumber,
         item_code: item.itemCode,
         description: item.description,
@@ -338,43 +423,77 @@ const App = () => {
         quantity: item.quantity,
         amount: item.amount,
         soh: item.soh,
-      })));
+        user_id: loggedInUser?.id || '',
+      }));
 
-    if (itemsError) {
-      console.error('Error saving items to Supabase:', itemsError.message);
-      alert('Failed to save items to database.');
-      return;
+      // Insert items into pr_items table
+      const { error: itemsError } = await supabase
+        .from('pr_items')
+        .insert(dbItems);
+
+      if (itemsError) {
+        console.error('Error saving items to Supabase:', itemsError.message);
+        alert('Failed to save items to database: ' + itemsError.message);
+        return;
+      }
+
+      // Prepare order history entry
+      const orderHistoryEntry: DbOrderHistory = {
+        po_number: currentPrNumber,
+        date: currentDate,
+        time: currentTime,
+        status: 'Pending',
+        user_id: loggedInUser?.id || '',
+        total_amount: totalAmount,
+        total_items: totalItems,
+        items_data: items, // Store items as JSON
+      };
+
+      // Insert into order_history table
+      const { error: orderHistoryError } = await supabase
+        .from('order_history')
+        .insert([orderHistoryEntry]);
+
+      if (orderHistoryError) {
+        console.error('Error saving order history to Supabase:', orderHistoryError.message);
+        alert('Failed to save order history to database: ' + orderHistoryError.message);
+        return;
+      }
+
+      // Export to Excel
+      const data = items.map((item, index) => ({
+        'User': loggedInUser?.email || 'N/A',
+        'PR Number': currentPrNumber,
+        '#': index + 1,
+        'Item Code': item.itemCode,
+        'Description': item.description,
+        'UOM': item.uom,
+        'Supplier': item.supplier,
+        'Unit Price': item.unitPrice,
+        'Quantity': item.quantity,
+        'Amount': item.amount,
+        'SOH': item.soh,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
+      XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
+
+      // Generate a new PR number for the next order
+      setCurrentPrNumber(generateUniquePrNumber());
+
+      // Clear current items after successful export
+      setItems([]);
+
+      alert('Purchase Order exported successfully and saved to history!');
+
+    } catch (error) {
+      console.error('Error in handleExport:', error);
+      alert('An unexpected error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-
-    // Save to order history
-    const newOrder: OrderHistoryEntry = {
-      poNumber: currentPrNumber,
-      date: currentDate,
-      time: currentTime,
-      items: items, // Save a copy of the current items
-      status: 'Pending',
-      user_id: loggedInUser?.id || '',
-    };
-
-    const { error: orderHistoryError } = await supabase
-      .from('order_history')
-      .insert([{ ...newOrder }]);
-
-    if (orderHistoryError) {
-      console.error('Error saving order history to Supabase:', orderHistoryError.message);
-      alert('Failed to save order history to database.');
-      return;
-    }
-
-    setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
-
-    // Generate a new PR number for the next order
-    setCurrentPrNumber(`PR${Math.floor(Math.random() * 1000000)}`);
-
-    // Clear current items after successful export
-    setItems([]);
-
-    alert('Purchase Order exported successfully and saved to history!');
   };
 
   const handleClearAll = () => {
@@ -555,8 +674,14 @@ const App = () => {
             <Button variant="contained" startIcon={<PrintIcon />} onClick={handlePrint} sx={{ backgroundColor: '#424242', '&:hover': { backgroundColor: '#212121' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Print Preview
             </Button>
-            <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
-              Submit Order
+            <Button 
+              variant="contained" 
+              startIcon={<DownloadIcon />} 
+              onClick={handleExport} 
+              disabled={isLoading}
+              sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}
+            >
+              {isLoading ? 'Submitting...' : 'Submit Order'}
             </Button>
             
           </Box>
