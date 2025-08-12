@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
@@ -67,8 +67,8 @@ const App = () => {
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<string | null>(null);
-  const [showLoginDialog, setShowLoginDialog] = useState(true);
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(localStorage.getItem('loggedInUser'));
+  const [showLoginDialog, setShowLoginDialog] = useState(!localStorage.getItem('loggedInUser'));
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -77,6 +77,11 @@ const App = () => {
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [approverEmail, setApproverEmail] = useState('');
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>(
+    { open: false, message: '', severity: 'info' }
+  );
+  const [sendingApproval, setSendingApproval] = useState(false);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -124,12 +129,7 @@ const App = () => {
       setOrderHistory(filteredHistory);
     }
 
-    // Check for a previously logged-in user (optional, for persistence)
-    const lastLoggedInUser = localStorage.getItem('loggedInUser');
-    if (lastLoggedInUser) {
-      setLoggedInUser(lastLoggedInUser);
-      setShowLoginDialog(false); // Hide login if user was already logged in
-    }
+    
   }, []);
 
   useEffect(() => {
@@ -158,8 +158,10 @@ const App = () => {
     // Persist logged-in user
     if (loggedInUser) {
       localStorage.setItem('loggedInUser', loggedInUser);
+      setShowLoginDialog(false);
     } else {
       localStorage.removeItem('loggedInUser');
+      setShowLoginDialog(true);
     }
   }, [loggedInUser]);
 
@@ -283,6 +285,78 @@ const App = () => {
     window.print();
   };
 
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch('/api/list-orders');
+        if (!res.ok) throw new Error('Failed to fetch');
+        const rows = await res.json();
+        const mapped: OrderHistoryEntry[] = (rows || []).map((r: any) => {
+          const created = r.created_at ? new Date(r.created_at) : new Date();
+          const date = created.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          const time = created.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          return {
+            poNumber: r.po_number,
+            date,
+            time,
+            items: Array.isArray(r.items) ? r.items : [],
+            status: r.status || 'Submitted',
+            user: r.user || 'Unknown',
+          } as OrderHistoryEntry;
+        });
+        setOrderHistory(mapped);
+      } catch (e) {
+        // Non-fatal
+      }
+    };
+    if (showOrderHistory) fetchOrders();
+  }, [showOrderHistory]);
+
+  const handleSendForApproval = async () => {
+    if (!loggedInUser) {
+      setSnack({ open: true, message: 'Please login first.', severity: 'error' });
+      return;
+    }
+    if (!approverEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(approverEmail)) {
+      setSnack({ open: true, message: 'Enter a valid approver email.', severity: 'error' });
+      return;
+    }
+    if (items.length === 0) {
+      setSnack({ open: true, message: 'Add at least one item.', severity: 'error' });
+      return;
+    }
+
+    setSendingApproval(true);
+    try {
+      const res = await fetch('/api/send-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poNumber,
+          user: loggedInUser,
+          items,
+          approverEmail,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setSnack({ open: true, message: 'Approval email sent.', severity: 'success' });
+      // Record to local history if not already
+      const newOrder: OrderHistoryEntry = {
+        poNumber: poNumber,
+        date: currentDate,
+        time: currentTime,
+        items: items,
+        status: 'Submitted',
+        user: loggedInUser,
+      };
+      setOrderHistory((prev) => [...prev, newOrder]);
+    } catch (e) {
+      setSnack({ open: true, message: 'Failed to send approval email.', severity: 'error' });
+    } finally {
+      setSendingApproval(false);
+    }
+  };
+
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -322,7 +396,7 @@ const App = () => {
 
   const isAdmin = loggedInUser === 'admin';
 
-  console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
+  
 
   return (
     <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh', padding: 3 }}>
@@ -407,7 +481,15 @@ const App = () => {
 
           
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, marginTop: 4, flexWrap: 'wrap' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              label="Approver Email"
+              size="small"
+              type="email"
+              value={approverEmail}
+              onChange={(e) => setApproverEmail(e.target.value)}
+              sx={{ minWidth: 280 }}
+            />
             <input
               type="file"
               id="upload-excel"
@@ -428,6 +510,14 @@ const App = () => {
             </label>
             <Button variant="contained" startIcon={<HistoryIcon />} onClick={() => setShowOrderHistory(true)} sx={{ backgroundColor: '#1976d2', '&:hover': { backgroundColor: '#1565c0' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Order History
+            </Button>
+            <Button
+              variant="contained"
+              onClick={handleSendForApproval}
+              sx={{ backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#1b5e20' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}
+              disabled={sendingApproval}
+            >
+              {sendingApproval ? <><CircularProgress size={18} sx={{ color: 'white', mr: 1 }} /> Sending…</> : 'Send for Approval'}
             </Button>
             <Button variant="contained" startIcon={<DeleteIcon />} onClick={handleClearAll} sx={{ backgroundColor: '#d32f2f', '&:hover': { backgroundColor: '#c62828' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Clear All
@@ -512,6 +602,17 @@ const App = () => {
           isAdmin={isAdmin}
         />
       )}
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

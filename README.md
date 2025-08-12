@@ -1,69 +1,47 @@
-# React + TypeScript + Vite
+## MCI Online PO Form
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite app for creating and tracking Purchase Orders (PO). Enhanced with:
 
-Currently, two official plugins are available:
+- Approval via email link (single approver)
+- Supabase storage for PO records and approval status
+- Netlify Functions for secure email sending and approval webhook
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### Local development
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      ...tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      ...tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      ...tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. Install deps: `npm i`
+2. Create `.env` with:
 ```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default tseslint.config([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
+3. Create `netlify/functions/.env` (not committed) with:
+```
+GMAIL_USER=your.gmail.address@gmail.com
+GMAIL_APP_PASSWORD=your_app_password
+APP_BASE_URL=http://localhost:8888
+SUPABASE_SERVICE_URL=your_supabase_project_url
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+```
+4. Run: `npm run dev`
+
+### Deploy
+
+- GitHub: commit, push
+- Netlify: connect repo, set build `npm run build`, publish `dist`.
+  Set env vars in Netlify UI:
+  - `RESEND_API_KEY` (from resend.com)
+  - `SUPABASE_SERVICE_URL`, `SUPABASE_SERVICE_ROLE_KEY`
+  - Optional: `URL` (Netlify auto-populates in production)
+  Functions auto-deployed from `netlify/functions`.
+- Supabase: create project and a table `purchase_orders` with columns:
+  - `id` uuid primary key default `uuid_generate_v4()`
+  - `po_number` text
+  - `user` text
+  - `items` jsonb
+  - `status` text
+  - `approver_email` text
+  - `approval_token` text
+  - `created_at` timestamptz default now()
+  - `approved_at` timestamptz
+
+RLS can be configured later; this app currently reads/writes via service function endpoints.
