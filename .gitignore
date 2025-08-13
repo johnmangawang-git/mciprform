@@ -1,3 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+.env
+*.local
+netlify/functions/.env
+netlify/functions/*.local
+*.log
+coverage/
+
 # Logs
 logs
 *.log

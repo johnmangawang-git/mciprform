@@ -1,26 +1,87 @@
 import React, { useState, useEffect } from 'react';
-import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
+import { AppBar, Toolbar, Typography, Button, Container, Box, TextField, Dialog, DialogTitle, DialogContent, DialogActions, Snackbar, Alert, CircularProgress } from '@mui/material';
 import { UploadFile as UploadIcon, History as HistoryIcon, Delete as DeleteIcon, Print as PrintIcon, Download as DownloadIcon, Login as LoginIcon, Logout as LogoutIcon } from '@mui/icons-material';
 import PoTable from './components/PoTable';
 import OrderHistoryModal from './components/OrderHistoryModal';
-import * as XLSX from 'xlsx';
-import type { PoItem, LookupData, OrderHistoryEntry, LoggedInUser, DbPoItem, DbOrderHistory } from './types';
-import { supabase } from './supabaseClient';
 
-console.log('Running version 1.0.1');
+import * as XLSX from 'xlsx';
+
+interface PoItem {
+  id: number;
+  itemCode: string;
+  description: string;
+  uom: string;
+  supplier: string;
+  unitPrice: number;
+  quantity: number;
+  amount: number;
+}
+
+interface LookupEntry {
+  description: string;
+  uom: string;
+}
+
+interface LookupData {
+  [itemCode: string]: LookupEntry;
+}
+
+interface OrderHistoryEntry {
+  poNumber: string;
+  date: string;
+  time: string;
+  items: PoItem[];
+  status: string; // e.g., 'Pending', 'Submitted'
+  user: string; // User who submitted the order
+}
+
+interface User {
+  username: string;
+  password: string;
+  role: 'admin' | 'user';
+}
+
+const USERS_INITIAL: User[] = [
+  { username: 'admin', password: 'admin', role: 'admin' },
+  { username: 'Finance director', password: 'password', role: 'user' },
+  { username: 'Gen accounting', password: 'password', role: 'user' },
+  { username: 'Treasury', password: 'password', role: 'user' },
+  { username: 'Inventory & Cost accounting mngr', password: 'password', role: 'user' },
+  { username: 'Revenue Assurance and Collection mngr', password: 'password', role: 'user' },
+  { username: 'Purchasing', password: 'password', role: 'user' },
+  { username: 'Warehouse & Logistics mngr', password: 'password', role: 'user' },
+  { username: 'Biz dev', password: 'password', role: 'user' },
+  { username: 'EA', password: 'password', role: 'user' },
+  { username: 'IT - SAP', password: 'password', role: 'user' },
+  { username: 'FP & A Manager', password: 'password', role: 'user' },
+  { username: 'Service', password: 'password', role: 'user' },
+];
 
 const App = () => {
+  const [users, setUsers] = useState<User[]>(() => {
+    const savedUsers = localStorage.getItem('users');
+    return savedUsers ? JSON.parse(savedUsers) : USERS_INITIAL;
+  });
   const [items, setItems] = useState<PoItem[]>([]);
-  const [currentPrNumber, setCurrentPrNumber] = useState('');
+  const [poNumber, setPoNumber] = useState(''); // Now a state variable
   const [lookupData, setLookupData] = useState<LookupData>({});
   const [orderHistory, setOrderHistory] = useState<OrderHistoryEntry[]>([]);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
-  const [loggedInUser, setLoggedInUser] = useState<LoggedInUser | null>(null);
-  const [showLoginDialog, setShowLoginDialog] = useState(true);
+  const [loggedInUser, setLoggedInUser] = useState<string | null>(localStorage.getItem('loggedInUser'));
+  const [showLoginDialog, setShowLoginDialog] = useState(!localStorage.getItem('loggedInUser'));
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [showChangePasswordDialog, setShowChangePasswordDialog] = useState(false);
+  const [oldPassword, setOldPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordChangeError, setPasswordChangeError] = useState('');
+  const [approverEmail, setApproverEmail] = useState('');
+  const [snack, setSnack] = useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>(
+    { open: false, message: '', severity: 'info' }
+  );
+  const [sendingApproval, setSendingApproval] = useState(false);
 
   const currentDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
@@ -33,364 +94,140 @@ const App = () => {
     hour12: true,
   });
 
-  const generateRandomDigits = (length: number) => {
-    let result = '';
-    for (let i = 0; i < length; i++) {
-      result += Math.floor(Math.random() * 10);
-    }
-    return result;
-  };
-
-  const generateUniquePrNumber = () => {
-    return `PR# ${generateRandomDigits(6)}`;
+  // Function to generate a unique PO number
+  const generateUniquePoNumber = (user: string | null) => {
+    const userPrefix = user ? user.replace(/[^a-zA-Z0-9]/g, '').toUpperCase() : 'GUEST';
+    return `PO-${userPrefix}-${Date.now()}`;
   };
 
   useEffect(() => {
-    setCurrentPrNumber(generateUniquePrNumber());
+    // Load items from local storage on initial render
+    const savedItems = localStorage.getItem('poItems');
+    if (savedItems) {
+      setItems(JSON.parse(savedItems));
+    }
 
-    const getSessionAndProfile = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        const { data: profile, error } = await supabase
-          .from('user_profiles')
-          .select('role')
-          .eq('id', session.user.id)
-          .single();
+    // Load lookup data from local storage
+    const savedLookupData = localStorage.getItem('poLookupData');
+    if (savedLookupData) {
+      setLookupData(JSON.parse(savedLookupData));
+    }
 
-        if (error) {
-          console.error('Error fetching user profile:', error.message);
-          setLoggedInUser(null);
-          setShowLoginDialog(true);
-        } else {
-          setLoggedInUser({ id: session.user.id, email: session.user.email || '', role: profile?.role || 'user' });
-          setShowLoginDialog(false);
-        }
-      } else {
-        setLoggedInUser(null);
-        setShowLoginDialog(true);
-      }
-    };
+    // Load and filter order history from local storage (last 14 days)
+    const savedOrderHistory = localStorage.getItem('poOrderHistory');
+    if (savedOrderHistory) {
+      const parsedHistory: OrderHistoryEntry[] = JSON.parse(savedOrderHistory);
+      const fourteenDaysAgo = new Date();
+      fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    getSessionAndProfile();
+      const filteredHistory = parsedHistory.filter(entry => {
+        // Ensure date is parsed correctly, handling potential inconsistencies
+        const [month, day, year] = entry.date.split('/').map(Number);
+        const entryDate = new Date(year, month - 1, day); // Month is 0-indexed
+        return entryDate >= fourteenDaysAgo;
+      });
+      setOrderHistory(filteredHistory);
+    }
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          const fetchProfile = async () => {
-            const { data: profile, error } = await supabase
-              .from('user_profiles')
-              .select('role')
-              .eq('id', session.user.id)
-              .single();
-
-            if (error) {
-              console.error('Error fetching user profile:', error.message);
-              setLoggedInUser(null);
-              setShowLoginDialog(true);
-            } else {
-              setLoggedInUser({ id: session.user.id, email: session.user.email || '', role: profile?.role || 'user' });
-              setShowLoginDialog(false);
-            }
-          };
-          fetchProfile();
-        } else if (event === 'SIGNED_OUT') {
-          setLoggedInUser(null);
-          setShowLoginDialog(true);
-        }
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
+    
   }, []);
 
-  
-
   useEffect(() => {
-    // Generate a new PR number when the user logs in or if items are cleared
+    // Generate a new PO number when the user logs in or if items are cleared
     if (loggedInUser && items.length === 0) {
-      setCurrentPrNumber(generateUniquePrNumber());
+      setPoNumber(generateUniquePoNumber(loggedInUser));
     }
   }, [loggedInUser, items]);
 
   useEffect(() => {
-    const fetchItems = async () => {
-      if (loggedInUser) {
-        const { data, error } = await supabase
-          .from('pr_items')
-          .select('*');
-
-        if (error) {
-          console.error('Error fetching items:', error.message);
-        } else {
-          // Transform database data to match frontend interface
-          const transformedItems: PoItem[] = (data || []).map((item: any) => ({
-            id: item.id,
-            pr_number: item.pr_number,
-            itemCode: item.item_code,
-            description: item.description,
-            uom: item.uom,
-            supplier: item.supplier,
-            unitPrice: item.unit_price,
-            quantity: item.quantity,
-            amount: item.amount,
-            soh: item.soh,
-            created_at: item.created_at,
-            user_id: item.user_id,
-          }));
-          setItems(transformedItems);
-        }
-      }
-    };
-    fetchItems();
-
-    const itemsSubscription = supabase
-      .channel('pr_items_channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'pr_items' },
-        (payload) => {
-          console.log('Change received!', payload);
-          if (payload.eventType === 'INSERT') {
-            const newItem = payload.new as any;
-            const transformedItem: PoItem = {
-              id: newItem.id,
-              pr_number: newItem.pr_number,
-              itemCode: newItem.item_code,
-              description: newItem.description,
-              uom: newItem.uom,
-              supplier: newItem.supplier,
-              unitPrice: newItem.unit_price,
-              quantity: newItem.quantity,
-              amount: newItem.amount,
-              soh: newItem.soh,
-              created_at: newItem.created_at,
-              user_id: newItem.user_id,
-            };
-            setItems((prev) => [...prev, transformedItem]);
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedItem = payload.new as any;
-            const transformedItem: PoItem = {
-              id: updatedItem.id,
-              pr_number: updatedItem.pr_number,
-              itemCode: updatedItem.item_code,
-              description: updatedItem.description,
-              uom: updatedItem.uom,
-              supplier: updatedItem.supplier,
-              unitPrice: updatedItem.unit_price,
-              quantity: updatedItem.quantity,
-              amount: updatedItem.amount,
-              soh: updatedItem.soh,
-              created_at: updatedItem.created_at,
-              user_id: updatedItem.user_id,
-            };
-            setItems((prev) =>
-              prev.map((item) =>
-                item.id === transformedItem.id ? transformedItem : item
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedItem = payload.old as any;
-            setItems((prev) =>
-              prev.filter((item) => item.id !== deletedItem.id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      itemsSubscription.unsubscribe();
-    };
-  }, [loggedInUser]);
+    // Save items to local storage whenever they change
+    localStorage.setItem('poItems', JSON.stringify(items));
+  }, [items]);
 
   useEffect(() => {
-    const fetchLookupData = async () => {
-      if (loggedInUser) {
-        const { data, error } = await supabase
-          .from('lookup_data')
-          .select('*');
-
-        if (error) {
-          console.error('Error fetching lookup data:', error.message);
-        } else {
-          const newLookup: LookupData = {};
-          data?.forEach((row: any) => {
-            newLookup[row.item_code.toLowerCase()] = { description: row.description, uom: row.uom };
-          });
-          setLookupData(newLookup);
-        }
-      }
-    };
-    fetchLookupData();
-
-    const lookupSubscription = supabase
-      .channel('lookup_data_channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'lookup_data' },
-        (payload) => {
-          console.log('Lookup data change received!', payload);
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            setLookupData((prev) => ({
-              ...prev,
-              [payload.new.item_code.toLowerCase()]: { description: payload.new.description, uom: payload.new.uom },
-            }));
-          } else if (payload.eventType === 'DELETE') {
-            setLookupData((prev) => {
-              const newState = { ...prev };
-              delete newState[payload.old.item_code.toLowerCase()];
-              return newState;
-            });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      lookupSubscription.unsubscribe();
-    };
-  }, [loggedInUser]);
+    // Save lookup data to local storage whenever it changes
+    localStorage.setItem('poLookupData', JSON.stringify(lookupData));
+  }, [lookupData]);
 
   useEffect(() => {
-    const fetchOrderHistory = async () => {
-      if (loggedInUser) {
-        try {
-          let query = supabase
-            .from('order_history')
-            .select('*')
-            .order('created_at', { ascending: false });
+    // Save order history to local storage whenever it changes
+    localStorage.setItem('poOrderHistory', JSON.stringify(orderHistory));
+  }, [orderHistory]);
 
-          // If not admin, only show user's own orders
-          if (loggedInUser.role !== 'admin') {
-            query = query.eq('user_id', loggedInUser.id);
-          }
-
-          const { data, error } = await query;
-
-          if (error) {
-            console.error('Error fetching order history:', error.message);
-            setOrderHistory([]);
-          } else {
-            // Transform database data to match frontend interface
-            const transformedData: OrderHistoryEntry[] = (data || []).map((entry: any) => ({
-              id: entry.id,
-              poNumber: entry.po_number,
-              date: entry.date,
-              time: entry.time,
-              items: entry.items_data || [],
-              status: entry.status,
-              user_id: entry.user_id,
-              created_at: entry.created_at,
-              total_amount: entry.total_amount,
-              total_items: entry.total_items,
-            }));
-            
-            setOrderHistory(transformedData);
-          }
-        } catch (error) {
-          console.error('Error in fetchOrderHistory:', error);
-          setOrderHistory([]);
-        }
-      }
-    };
-
-    fetchOrderHistory();
-
-    // Set up real-time subscription for order history
-    const orderHistorySubscription = supabase
-      .channel('order_history_channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'order_history' },
-        (payload) => {
-          console.log('Order history change received!', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            const newEntry = payload.new as any;
-            const transformedEntry: OrderHistoryEntry = {
-              id: newEntry.id,
-              poNumber: newEntry.po_number,
-              date: newEntry.date,
-              time: newEntry.time,
-              items: newEntry.items_data || [],
-              status: newEntry.status,
-              user_id: newEntry.user_id,
-              created_at: newEntry.created_at,
-              total_amount: newEntry.total_amount,
-              total_items: newEntry.total_items,
-            };
-            
-            // Only add if user is admin or it's their own order
-            if (loggedInUser?.role === 'admin' || newEntry.user_id === loggedInUser?.id) {
-              setOrderHistory((prev) => [transformedEntry, ...prev]);
-            }
-          } else if (payload.eventType === 'UPDATE') {
-            const updatedEntry = payload.new as any;
-            const transformedEntry: OrderHistoryEntry = {
-              id: updatedEntry.id,
-              poNumber: updatedEntry.po_number,
-              date: updatedEntry.date,
-              time: updatedEntry.time,
-              items: updatedEntry.items_data || [],
-              status: updatedEntry.status,
-              user_id: updatedEntry.user_id,
-              created_at: updatedEntry.created_at,
-              total_amount: updatedEntry.total_amount,
-              total_items: updatedEntry.total_items,
-            };
-            
-            setOrderHistory((prev) =>
-              prev.map((entry) =>
-                entry.id === updatedEntry.id ? transformedEntry : entry
-              )
-            );
-          } else if (payload.eventType === 'DELETE') {
-            const deletedEntry = payload.old as any;
-            setOrderHistory((prev) =>
-              prev.filter((entry) => entry.id !== deletedEntry.id)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      orderHistorySubscription.unsubscribe();
-    };
-  }, [loggedInUser]);
-
-  const handleLogin = async () => {
-    setLoginError('');
-    setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: usernameInput,
-      password: passwordInput,
-    });
-
-    if (error) {
-      setLoginError(error.message);
+  useEffect(() => {
+    // Persist logged-in user
+    if (loggedInUser) {
+      localStorage.setItem('loggedInUser', loggedInUser);
+      setShowLoginDialog(false);
     } else {
-      // Supabase auth listener will handle setting loggedInUser and showLoginDialog
+      localStorage.removeItem('loggedInUser');
+      setShowLoginDialog(true);
+    }
+  }, [loggedInUser]);
+
+  const handleLogin = () => {
+    const user = users.find(
+      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === passwordInput
+    );
+
+    if (user) {
+      setLoggedInUser(user.username);
+      setShowLoginDialog(false);
+      setLoginError('');
       setUsernameInput('');
       setPasswordInput('');
-    }
-    setIsLoading(false);
-  };
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('Error logging out:', error.message);
+      // Generate PO number on successful login
+      setPoNumber(generateUniquePoNumber(user.username));
     } else {
-      console.log('User logged out successfully.');
-      setItems([]); // Clear current items on logout
-      setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR for next session
+      setLoginError('Invalid username or password.');
     }
   };
 
-  const handleExport = async () => {
+  const handleLogout = () => {
+    setLoggedInUser(null);
+    setShowLoginDialog(true);
+    setItems([]); // Clear current items on logout
+    setPoNumber(generateUniquePoNumber(null)); // Generate new PO for next session
+  };
+
+  const handleChangePassword = () => {
+    if (!usernameInput || !oldPassword || !newPassword || !confirmNewPassword) {
+      setPasswordChangeError('All fields are required.');
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordChangeError('New password and confirm new password do not match.');
+      return;
+    }
+
+    const userIndex = users.findIndex(
+      (u) => u.username.toLowerCase() === usernameInput.toLowerCase() && u.password === oldPassword
+    );
+
+    if (userIndex === -1) {
+      setPasswordChangeError('Invalid username or old password.');
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordChangeError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    const updatedUsers = [...users];
+    updatedUsers[userIndex].password = newPassword;
+    setUsers(updatedUsers);
+    localStorage.setItem('users', JSON.stringify(updatedUsers)); // Save updated users to local storage
+    setPasswordChangeError('');
+    setOldPassword('');
+    setNewPassword('');
+    setConfirmNewPassword('');
+    setShowChangePasswordDialog(false);
+    alert('Password changed successfully!');
+  };
+
+  const handleExport = () => {
     if (items.length === 0) {
       alert('No items to export.');
       return;
@@ -405,101 +242,42 @@ const App = () => {
       return;
     }
 
-    try {
-      setIsLoading(true);
+    const data = items.map((item, index) => ({
+      'User': loggedInUser || 'N/A', // New User column
+      'PO Number': poNumber, // Added PO Number column
+      '#': index + 1,
+      'Item Code': item.itemCode,
+      'Description': item.description,
+      'UOM': item.uom,
+      'Supplier': item.supplier,
+      'Unit Price': item.unitPrice,
+      'Quantity': item.quantity,
+      'Amount': item.amount,
+    }));
 
-      // Calculate totals
-      const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
-      const totalItems = items.length;
+    const ws = XLSX.utils.json_to_sheet(data);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
+    XLSX.writeFile(wb, `MCI_PO_${poNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
 
-      // Prepare items for database insertion
-      const dbItems: DbPoItem[] = items.map(item => ({
-        pr_number: currentPrNumber,
-        item_code: item.itemCode,
-        description: item.description,
-        uom: item.uom,
-        supplier: item.supplier,
-        unit_price: item.unitPrice,
-        quantity: item.quantity,
-        amount: item.amount,
-        soh: item.soh,
-        user_id: loggedInUser?.id || '',
-      }));
+    // Save to order history
+    const newOrder: OrderHistoryEntry = {
+      poNumber: poNumber,
+      date: currentDate,
+      time: currentTime,
+      items: items, // Save a copy of the current items
+      status: 'Submitted', // Changed status to Submitted
+      user: loggedInUser || 'Unknown', // Store the user who submitted
+    };
+    setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
 
-      // Insert items into pr_items table
-      const { error: itemsError } = await supabase
-        .from('pr_items')
-        .insert(dbItems);
-
-      if (itemsError) {
-        console.error('Error saving items to Supabase:', itemsError.message);
-        alert('Failed to save items to database: ' + itemsError.message);
-        return;
-      }
-
-      // Prepare order history entry
-      const orderHistoryEntry: DbOrderHistory = {
-        po_number: currentPrNumber,
-        date: currentDate,
-        time: currentTime,
-        status: 'Pending',
-        user_id: loggedInUser?.id || '',
-        total_amount: totalAmount,
-        total_items: totalItems,
-        items_data: items, // Store items as JSON
-      };
-
-      // Insert into order_history table
-      const { error: orderHistoryError } = await supabase
-        .from('order_history')
-        .insert([orderHistoryEntry]);
-
-      if (orderHistoryError) {
-        console.error('Error saving order history to Supabase:', orderHistoryError.message);
-        alert('Failed to save order history to database: ' + orderHistoryError.message);
-        return;
-      }
-
-      // Export to Excel
-      const data = items.map((item, index) => ({
-        'User': loggedInUser?.email || 'N/A',
-        'PR Number': currentPrNumber,
-        '#': index + 1,
-        'Item Code': item.itemCode,
-        'Description': item.description,
-        'UOM': item.uom,
-        'Supplier': item.supplier,
-        'Unit Price': item.unitPrice,
-        'Quantity': item.quantity,
-        'Amount': item.amount,
-        'SOH': item.soh,
-      }));
-
-      const ws = XLSX.utils.json_to_sheet(data);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Purchase Order');
-      XLSX.writeFile(wb, `MCI_PR_${currentPrNumber}_${currentDate.replace(/ /g, '_')}.xlsx`);
-
-      // Generate a new PR number for the next order
-      setCurrentPrNumber(generateUniquePrNumber());
-
-      // Clear current items after successful export
-      setItems([]);
-
-      alert('Purchase Order exported successfully and saved to history!');
-
-    } catch (error) {
-      console.error('Error in handleExport:', error);
-      alert('An unexpected error occurred. Please try again.');
-    } finally {
-      setIsLoading(false);
-    }
+    alert('Purchase Order exported successfully and saved to history!');
   };
 
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all items?')) {
       setItems([]);
-      setCurrentPrNumber(generateUniquePrNumber()); // Generate new PR number on clear
+      setPoNumber(generateUniquePoNumber(loggedInUser)); // Generate new PO number on clear
     }
   };
 
@@ -507,12 +285,84 @@ const App = () => {
     window.print();
   };
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const res = await fetch('/api/list-orders');
+        if (!res.ok) throw new Error('Failed to fetch');
+        const rows = await res.json();
+        const mapped: OrderHistoryEntry[] = (rows || []).map((r: any) => {
+          const created = r.created_at ? new Date(r.created_at) : new Date();
+          const date = created.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+          const time = created.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+          return {
+            poNumber: r.po_number,
+            date,
+            time,
+            items: Array.isArray(r.items) ? r.items : [],
+            status: r.status || 'Submitted',
+            user: r.user || 'Unknown',
+          } as OrderHistoryEntry;
+        });
+        setOrderHistory(mapped);
+      } catch (e) {
+        // Non-fatal
+      }
+    };
+    if (showOrderHistory) fetchOrders();
+  }, [showOrderHistory]);
+
+  const handleSendForApproval = async () => {
+    if (!loggedInUser) {
+      setSnack({ open: true, message: 'Please login first.', severity: 'error' });
+      return;
+    }
+    if (!approverEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(approverEmail)) {
+      setSnack({ open: true, message: 'Enter a valid approver email.', severity: 'error' });
+      return;
+    }
+    if (items.length === 0) {
+      setSnack({ open: true, message: 'Add at least one item.', severity: 'error' });
+      return;
+    }
+
+    setSendingApproval(true);
+    try {
+      const res = await fetch('/api/send-approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          poNumber,
+          user: loggedInUser,
+          items,
+          approverEmail,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      setSnack({ open: true, message: 'Approval email sent.', severity: 'success' });
+      // Record to local history if not already
+      const newOrder: OrderHistoryEntry = {
+        poNumber: poNumber,
+        date: currentDate,
+        time: currentTime,
+        items: items,
+        status: 'Submitted',
+        user: loggedInUser,
+      };
+      setOrderHistory((prev) => [...prev, newOrder]);
+    } catch (e) {
+      setSnack({ open: true, message: 'Failed to send approval email.', severity: 'error' });
+    } finally {
+      setSendingApproval(false);
+    }
+  };
+
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = async (e) => {
+    reader.onload = (e) => {
       try {
         const data = new Uint8Array(e.target?.result as ArrayBuffer);
         const workbook = XLSX.read(data, { type: 'array' });
@@ -522,7 +372,6 @@ const App = () => {
         const rawData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
         const newLookup: LookupData = {};
-
         for (let i = 1; i < rawData.length; i++) {
           const row = rawData[i];
           const itemCode = row[1]?.toString().trim().toLowerCase(); // Column B
@@ -533,26 +382,7 @@ const App = () => {
             newLookup[itemCode] = { description, uom };
           }
         }
-
-        // Convert the newLookup object (which has unique item_codes) into an array for upsert
-        const newLookupArray = Object.keys(newLookup).map(itemCode => ({
-          item_code: itemCode,
-          description: newLookup[itemCode].description,
-          uom: newLookup[itemCode].uom,
-        }));
-
-        // Upsert new lookup data
-        const { error: upsertError } = await supabase
-          .from('lookup_data')
-          .upsert(newLookupArray, { onConflict: 'item_code' });
-
-        if (upsertError) {
-          console.error('Error upserting new lookup data:', upsertError.message);
-          alert('Failed to update lookup data.');
-          return;
-        }
-
-        setLookupData((prev) => ({ ...prev, ...newLookup }));
+        setLookupData(newLookup);
         alert('Lookup data uploaded successfully!');
       } catch (error) {
         console.error('Error reading Excel file:', error);
@@ -564,9 +394,9 @@ const App = () => {
 
   const totalAmount = items.reduce((sum, item) => sum + item.amount, 0);
 
-  const isAdmin = loggedInUser?.role === 'admin';
+  const isAdmin = loggedInUser === 'admin';
 
-  console.log('Logged in user:', loggedInUser, 'Is Admin:', isAdmin); // Debug log
+  
 
   return (
     <Box sx={{ flexGrow: 1, backgroundColor: '#f0f2f5', minHeight: '100vh', padding: 3 }}>
@@ -574,7 +404,7 @@ const App = () => {
         <Toolbar sx={{ justifyContent: 'space-between', paddingY: 2 }}>
           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <Typography variant="h4" component="div" sx={{ color: '#212121', fontWeight: 'bold', letterSpacing: '-0.5px' }}>
-              MCI Online PR Form
+              MCI Online PO Form
             </Typography>
             <Typography sx={{ color: '#616161', fontSize: '0.6rem', lineHeight: 1, marginTop: '-4px' }}>
               created by: johnM
@@ -583,9 +413,9 @@ const App = () => {
           <Box sx={{ textAlign: 'right', color: '#616161' }}>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentDate}</Typography>
             <Typography variant="body2" sx={{ fontWeight: 'medium' }}>{currentTime}</Typography>
-            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PR#: {currentPrNumber}</Typography>
+            <Typography variant="h6" sx={{ color: '#1976d2', fontWeight: 'bold', marginTop: '4px' }}>PO Number: {poNumber}</Typography>
             {loggedInUser && (
-              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser.email}</Typography>
+              <Typography variant="body2" sx={{ fontWeight: 'bold', color: '#424242', marginTop: '4px' }}>Logged in as: {loggedInUser}</Typography>
             )}
           </Box>
         </Toolbar>
@@ -629,8 +459,11 @@ const App = () => {
             )}
           </DialogContent>
           <DialogActions sx={{ padding: 2 }}>
-            <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />} disabled={isLoading}>
-              {isLoading ? 'Logging in...' : 'Login'}
+            <Button onClick={handleLogin} variant="contained" startIcon={<LoginIcon />}>
+              Login
+            </Button>
+            <Button onClick={() => setShowChangePasswordDialog(true)} variant="outlined">
+              Change Password
             </Button>
           </DialogActions>
         </Dialog>
@@ -646,7 +479,17 @@ const App = () => {
           </Box>
           <PoTable items={items} setItems={setItems} lookupData={lookupData} />
 
-          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, marginTop: 4, flexWrap: 'wrap' }}>
+          
+
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 2, marginTop: 4, alignItems: 'center', flexWrap: 'wrap' }}>
+            <TextField
+              label="Approver Email"
+              size="small"
+              type="email"
+              value={approverEmail}
+              onChange={(e) => setApproverEmail(e.target.value)}
+              sx={{ minWidth: 280 }}
+            />
             <input
               type="file"
               id="upload-excel"
@@ -668,40 +511,110 @@ const App = () => {
             <Button variant="contained" startIcon={<HistoryIcon />} onClick={() => setShowOrderHistory(true)} sx={{ backgroundColor: '#1976d2', '&:hover': { backgroundColor: '#1565c0' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Order History
             </Button>
+            <Button
+              variant="contained"
+              onClick={handleSendForApproval}
+              sx={{ backgroundColor: '#2e7d32', '&:hover': { backgroundColor: '#1b5e20' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}
+              disabled={sendingApproval}
+            >
+              {sendingApproval ? <><CircularProgress size={18} sx={{ color: 'white', mr: 1 }} /> Sending…</> : 'Send for Approval'}
+            </Button>
             <Button variant="contained" startIcon={<DeleteIcon />} onClick={handleClearAll} sx={{ backgroundColor: '#d32f2f', '&:hover': { backgroundColor: '#c62828' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Clear All
             </Button>
             <Button variant="contained" startIcon={<PrintIcon />} onClick={handlePrint} sx={{ backgroundColor: '#424242', '&:hover': { backgroundColor: '#212121' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Print Preview
             </Button>
-            <Button 
-              variant="contained" 
-              startIcon={<DownloadIcon />} 
-              onClick={handleExport} 
-              disabled={isLoading}
-              sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}
-            >
-              {isLoading ? 'Submitting...' : 'Submit Order'}
+            <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
+              Submit Order
             </Button>
-            
           </Box>
 
-          <Box sx={{ borderTop: '1px solid #e0e0e0', paddingTop: 3, marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'f5f5f5', padding: 3, borderRadius: '8px', boxShadow: 'inset 0px 1px 5px rgba(0, 0, 0, 0.05)' }}>
+          <Box sx={{ borderTop: '1px solid #e0e0e0', paddingTop: 3, marginTop: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f5f5f5', padding: 3, borderRadius: '8px', boxShadow: 'inset 0px 1px 5px rgba(0, 0, 0, 0.05)' }}>
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121' }}>Total Items: <span style={{ color: '#1976d2' }}>{items.length}</span></Typography>
             <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#212121' }}>Total Amount: <span style={{ color: '#1976d2' }}>₱{totalAmount.toFixed(2)}</span></Typography>
           </Box>
         </Container>
       )}
 
+      <Dialog open={showChangePasswordDialog} onClose={() => setShowChangePasswordDialog(false)}>
+        <DialogTitle sx={{ backgroundColor: '#1976d2', color: 'white', fontWeight: 'bold' }}>Change Password</DialogTitle>
+        <DialogContent sx={{ padding: 3 }}>
+          <TextField
+            autoFocus
+            margin="dense"
+            id="old-password"
+            label="Old Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={oldPassword}
+            onChange={(e) => setOldPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="new-password"
+            label="New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            sx={{ marginBottom: 2 }}
+          />
+          <TextField
+            margin="dense"
+            id="confirm-new-password"
+            label="Confirm New Password"
+            type="password"
+            fullWidth
+            variant="outlined"
+            value={confirmNewPassword}
+            onChange={(e) => setConfirmNewPassword(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter') {
+                handleChangePassword();
+              }
+            }}
+          />
+          {passwordChangeError && (
+            <Typography color="error" variant="body2" sx={{ marginTop: 1 }}>
+              {passwordChangeError}
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ padding: 2 }}>
+          <Button onClick={() => setShowChangePasswordDialog(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleChangePassword} variant="contained" color="primary">
+            Change Password
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {showOrderHistory && (
         <OrderHistoryModal
           orderHistory={orderHistory}
           onClose={() => setShowOrderHistory(false)}
+          loggedInUser={loggedInUser}
           isAdmin={isAdmin}
         />
       )}
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={4000}
+        onClose={() => setSnack((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity={snack.severity} onClose={() => setSnack((s) => ({ ...s, open: false }))}>
+          {snack.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
-};
+}
 
 export default App;
