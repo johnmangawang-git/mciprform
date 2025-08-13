@@ -265,13 +265,50 @@ const App = () => {
       poNumber: poNumber,
       date: currentDate,
       time: currentTime,
-      items: items, // Save a copy of the current items
-      status: 'Submitted', // Changed status to Submitted
-      user: loggedInUser || 'Unknown', // Store the user who submitted
+      items: items,
+      status: 'Submitted',
+      user: loggedInUser || 'Unknown',
     };
     setOrderHistory((prevHistory) => [...prevHistory, newOrder]);
 
+    // Persist to Supabase order_history via function (server-side maps to items_data)
+    fetch('/api/save-order-history', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        poNumber: poNumber,
+        date: currentDate,
+        time: currentTime,
+        items: items,
+        status: 'Submitted',
+        userId: null,
+      }),
+    }).catch(() => {});
+
     alert('Purchase Order exported successfully and saved to history!');
+  };
+
+  const handleSaveToDb = async () => {
+    if (items.length === 0) {
+      alert('No items to save.');
+      return;
+    }
+    try {
+      const res = await fetch('/api/save-pr-items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prNumber: poNumber,
+          userId: null,
+          items,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed');
+      alert('Saved to database.');
+    } catch (e) {
+      console.error('Error saving items to Supabase:', e);
+      alert('Failed to save items to database.');
+    }
   };
 
   const handleClearAll = () => {
@@ -524,6 +561,9 @@ const App = () => {
             </Button>
             <Button variant="contained" startIcon={<PrintIcon />} onClick={handlePrint} sx={{ backgroundColor: '#424242', '&:hover': { backgroundColor: '#212121' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Print Preview
+            </Button>
+            <Button variant="outlined" onClick={handleSaveToDb}>
+              Save to DB
             </Button>
             <Button variant="contained" startIcon={<DownloadIcon />} onClick={handleExport} sx={{ backgroundColor: '#388e3c', '&:hover': { backgroundColor: '#2e7d32' }, padding: '12px 24px', borderRadius: '8px', boxShadow: '0px 2px 10px rgba(0, 0, 0, 0.1)' }}>
               Submit Order
